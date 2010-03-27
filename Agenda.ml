@@ -236,7 +236,6 @@ and do_menu menu =
     (* ask for a choice *)
     try
         print_string "Choice: ";
-        flush_all ();
         ReadKey.cbreak stdin;
         let choice =
             match ReadKey.readkey stdin with

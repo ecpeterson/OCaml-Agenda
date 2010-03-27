@@ -28,6 +28,7 @@ let cooked fh =
 
 let readchar_raw fd =
     let buf = String.create 1 in
+    flush_all ();
     let _ = read fd buf 0 1 in
     buf.[0]
 
