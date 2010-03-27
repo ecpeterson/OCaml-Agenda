@@ -1,5 +1,6 @@
 (* for time functions *)
 open Unix
+let stdin = Pervasives.stdin
 
 (* for ansi functions *)
 open AnsiLib
@@ -223,7 +224,14 @@ and do_menu menu =
     (* ask for a choice *)
     try
         print_string "Choice: ";
-        let choice = (String.uppercase(read_line ())).[0] in
+        flush_all ();
+        ReadKey.cbreak stdin;
+        let choice =
+            match ReadKey.readkey stdin with
+            | ReadKey.Char c -> (Printf.printf "%c\n" c; c)
+            | _               -> raise (Failure invalid_string)
+        in
+        ReadKey.cooked stdin;
         let rec iterate menu choice =
             match menu with
                 (_, c, f) :: menu -> if c = choice then f () else iterate menu choice
@@ -234,11 +242,11 @@ and do_menu menu =
         loop ()
 (* and the meaty part of the menu, parsed by do_menu *)
 and menu =
-    ["Add item", 'A', (fun () ->
+    ["Add item", 'a', (fun () ->
         begin match read_item () with None -> () | Some item ->
         alter_schedule (fun x -> List.sort compare_items (item :: x)) end;
         loop ());
-     "Toggle completion", 'T', (fun () ->
+     "Toggle completion", 't', (fun () ->
          print_string "Item: ";
          let sched = Hashtbl.find !schedule !schedule_title in
          begin try
@@ -246,13 +254,13 @@ and menu =
              i.complete <- not i.complete
          with _ -> print_endline invalid_string end;
          loop ());
-     "Delete item", 'D', (fun () ->
+     "Delete item", 'd', (fun () ->
          print_string "Item: ";
          alter_schedule (fun x -> delete_item x (read_int ()));
          loop ());
-     "Refresh screen", 'R', loop;
-     "Write schedule", 'W', (fun () -> write_schedule (); loop ());
-     "Change schedule", 'S', (fun () ->
+     "Refresh screen", 'r', loop;
+     "Write schedule", 'w', (fun () -> write_schedule (); loop ());
+     "Change schedule", 's', (fun () ->
         print_endline "Available lists are:";
         Hashtbl.iter (fun a b -> print_endline ("    " ^ a)) !schedule;
         print_string "Change list to: ";
@@ -267,7 +275,7 @@ and menu =
                     Hashtbl.add !schedule response []
                 |_ -> () end;
         loop ());
-     "Quit", 'Q', (fun () -> ())]
+     "Quit", 'q', (fun () -> ())]
 
 (* entry point for the program *)
 let _ =
