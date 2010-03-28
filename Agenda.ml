@@ -1,34 +1,12 @@
-(* for time functions *)
-open Unix
-let stdin = Pervasives.stdin
-
-(* for ansi functions *)
 open AnsiLib
+open Date
 
 (* generic error string *)
 let invalid_string = "Invalid choice."
 
-(* our representation of what a date is, note that this gets Marshal'ed.
- * note further that these fields are ordered so that compare (or <, whatever)
- * work appropriately on them.  don't shuffle the fields!  *)
-type date = {
-    year: int;
-    month: int;
-    day: int }
-let old_date = {year = 0; month = 0; day = 0}
-
 (* routines to print out the left-most column of the schedule display *)
-let print_date date =
-    Printf.printf "%04d/%02d/%02d" date.year date.month date.day
 let print_spacer () =
     print_string "        |-"
-
-(* get the current date *)
-let gen_date () =
-    let time = localtime (time ()) in
-    {year = time.tm_year + 1900;
-     month = time.tm_mon + 1;
-     day = time.tm_mday}
 
 (* datum for a single entry, note that changing this will alter the file format
  * used to store the schedule via Marshal. *)
@@ -65,7 +43,7 @@ let read_item () =
                 |_ -> (record_date, Never)
         in
     let text  = print_string "Text: "; read_line () in
-    let response = print_string "Confirm [yN]: "; flush Pervasives.stdout;
+    let response = print_string "Confirm [yN]: "; flush stdout;
         read_line () in
     match response.[0] with
     |'y' | 'Y' -> Some {text = text;
@@ -87,15 +65,6 @@ let compare_items a b =
         |Some _, None   -> -1
         |None,   Some _ -> 1
         |Some x, Some y -> compare x y
-
-(* check to see if a date record is within num days of the current time *)
-let within_days date num =
-    let our_date = gen_date () in
-    match date with None -> false | Some date ->
-        let years = date.year - our_date.year in
-        let months = date.month - our_date.month + years*12 in
-        let days = date.day - our_date.day + months*30 in
-        if days <= num then true else false
 
 (* display the working schedule *)
 let display_schedule () =
@@ -164,36 +133,18 @@ let trim_schedule schedule =
                         |(false, _) ->
                             ts_aux (item :: prefix) items
                         |(_, Weekly) ->
-                            let tm : Unix.tm = {tm_sec = 0;
-                                      tm_min = 0;
-                                      tm_hour = 12;
-                                      tm_mday = incoming_date.day + 7;
-                                      tm_mon = incoming_date.month - 1;
-                                      tm_year = incoming_date.year - 1900;
-                                      tm_wday = 0;
-                                      tm_yday = 0;
-                                      tm_isdst = false} in
-                            let (_, tm) = Unix.mktime tm in
-                            let new_item = {item with date =
-                                Some {year = tm.tm_year + 1900;
-                                      month = tm.tm_mon + 1;
-                                      day = tm.tm_mday};
+                            let new_item = {item with
+                                date     = Some (add_week incoming_date);
                                 complete = false} in
                             ts_aux (new_item :: prefix) items
                         |(_, Monthly) ->
-                            let new_item = {item with date =
-                                Some (if incoming_date.month = 12 then
-                                        {incoming_date with month = 1;
-                                         year = incoming_date.year + 1}
-                                    else
-                                        {incoming_date with month =
-                                            incoming_date.month + 1});
+                            let new_item = {item with
+                                date     = Some (add_month incoming_date);
                                 complete = false} in
                             ts_aux (new_item :: prefix) items
                         |(_, Yearly) ->
-                            let new_item = {item with date =
-                                Some {incoming_date with year =
-                                    incoming_date.year + 1 };
+                            let new_item = {item with
+                                date     = Some (add_year incoming_date);
                                 complete = false} in
                             ts_aux (new_item :: prefix) items
                         |(_, Never) -> ts_aux prefix items

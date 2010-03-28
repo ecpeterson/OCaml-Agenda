@@ -1,5 +1,6 @@
 RESULT = agenda
 SOURCES = AnsiLib.ml \
+	  Date.ml \
 	  ReadKey.ml \
 	  Agenda.ml
 LIBS = unix
