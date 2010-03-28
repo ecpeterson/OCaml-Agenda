@@ -93,10 +93,17 @@ let display_schedule () =
     ds_aux (Hashtbl.find !schedule !schedule_title) old_date 1
 
 (* the main loop for the program *)
-let rec loop () =
+let rec loop err_msg =
     alter_schedule trim_schedule;
     print_string (clear_screen ());
     display_schedule ();
+    (match err_msg with
+    | Some s -> print_endline (
+        (set_style [Reset;Bright] Red Black)
+      ^ s
+      ^ (set_style [Reset] White Black)
+      )
+    | None -> ());
     do_menu menu
 (* parses the 'menu' list given below, handles an abstract UI *)
 and do_menu menu =
@@ -125,15 +132,16 @@ and do_menu menu =
                 (_, c, f) :: menu -> if c = choice then f () else iterate menu choice
                |[] -> raise (Failure invalid_string) in
         iterate menu choice
-    with _ ->
-        (* if the user fucked up, do it again *)
-        loop ()
+    with
+    (* if the user fucked up, do it again *)
+    | Failure s -> loop (Some s)
+    | _         -> loop (Some "Unknown error")
 (* and the meaty part of the menu, parsed by do_menu *)
 and menu =
     ["Add item", 'a', (fun () ->
         begin match read_item () with None -> () | Some item ->
         alter_schedule (fun x -> List.sort compare_items (item :: x)) end;
-        loop ());
+        loop None);
      "Toggle completion", 't', (fun () ->
          print_string "Item: ";
          let sched = Hashtbl.find !schedule !schedule_title in
@@ -141,13 +149,13 @@ and menu =
              let i = List.nth sched (read_int () - 1) in
              i.complete <- not i.complete
          with _ -> print_endline invalid_string end;
-         loop ());
+         loop None);
      "Delete item", 'd', (fun () ->
          print_string "Item: ";
          alter_schedule (fun x -> delete_item x (read_int ()));
-         loop ());
-     "Refresh screen", 'r', loop;
-     "Write schedule", 'w', (fun () -> write_schedule (); loop ());
+         loop None);
+     "Refresh screen", 'r', (fun () -> loop None);
+     "Write schedule", 'w', (fun () -> write_schedule (); loop None);
      "Change schedule", 's', (fun () ->
         print_endline "Available lists are:";
         Hashtbl.iter (fun a b -> print_endline ("    " ^ a)) !schedule;
@@ -162,11 +170,11 @@ and menu =
                     schedule_title := response;
                     Hashtbl.add !schedule response []
                 |_ -> () end;
-        loop ());
+        loop None);
      "Quit", 'q', (fun () -> ())]
 
 (* entry point for the program *)
 let _ =
     read_schedule ();
-    loop ();
+    loop None;
     write_schedule ()
