@@ -16,34 +16,88 @@ let read_int_default tag default =
     let response = read_line () in
     if response = "" then default else int_of_string response
 
+let read_char_default tag allowed default =
+    let choices =
+        Buffer.contents (
+            List.fold_left (fun a b ->
+                let c = (if b == default then
+                    Char.uppercase b
+                else
+                    Char.lowercase b)
+                in
+                Buffer.add_char a c;
+                a) (Buffer.create 4) allowed
+        )
+    in
+    Printf.printf "%s [%s]: " tag choices;
+    cbreak stdin;
+    let ret =
+        let rec rcd_aux () =
+            let key = readkey stdin in
+            (match key with
+             | Char c -> (if List.exists (fun cc -> c == cc) allowed then
+                              c
+                          else
+                              rcd_aux())
+             | _      -> rcd_aux ())
+        in rcd_aux ()
+    in
+    cooked stdin;
+    Printf.printf "%c\n" ret;
+    ret
+
+let read_string_default tag default =
+    Printf.printf "%s: " tag;
+    match read_line () with
+    | "" -> default
+    | s  -> s
+
+
+let yesno tag default =
+    Printf.printf "%s [%s]: " tag (if default then "Yn" else "yN");
+    cbreak stdin;
+    let ret =
+        let rec yesno_aux () =
+            let key = readkey stdin in
+            (match key with
+             | Char c -> (match c with
+                          | 'Y' | 'y' -> true
+                          | 'N' | 'n' -> false
+                          | '\n'      -> default
+                          | _         -> yesno_aux ())
+             | _      -> yesno_aux ())
+        in yesno_aux ()
+    in
+    cooked stdin;
+    Printf.printf "%c\n" (if ret then 'y' else 'n');
+    ret
+
 (* read in a whole item, allow user to cancel, return item option *)
 let read_item () =
     let our_date = gen_date () in
-    let dateq = print_string "Date [Yn]: "; read_line () in
-    let (date, repeat) = match dateq with
-        |"n" | "N" ->
-            (None, Never)
-        |_ ->
-            let repeatq = print_string "Repeat [w]eekly, repeat [m]onthly, repeat [y]early, [N]ever repeat: "; read_line () in
-            let year  = read_int_default "Year"  our_date.year in
-            let month = read_int_default "Month" our_date.month in
-            let day   = read_int_default "Day"   our_date.day in
-            let record_date = Some {year = year; month = month; day = day} in
-            match (if repeatq = "" then 'n' else repeatq.[0]) with
-                |'w' | 'W' -> (record_date, Weekly)
-                |'m' | 'M' -> (record_date, Monthly)
-                |'y' | 'Y' -> (record_date, Yearly)
-                |_ -> (record_date, Never)
-        in
-    let text  = print_string "Text: "; read_line () in
-    let response = print_string "Confirm [yN]: "; flush stdout;
-        read_line () in
-    match (if String.length response > 0 then response.[0] else 'n') with
-    |'y' | 'Y' -> Some {text = text;
-                        complete = false;
-                        repeat = repeat;
-                        date = date}
-    |_ -> None
+    let (date, repeat) = if yesno "Date" true then
+        let repeatq = read_char_default "Repeat? (weekly, monthly, yearly, never)" ['w';'m';'y';'n'] 'n' in
+        let year  = read_int_default "Year"  our_date.year in
+        let month = read_int_default "Month" our_date.month in
+        let day   = read_int_default "Day"   our_date.day in
+        let record_date = Some {year = year; month = month; day = day} in
+        match repeatq with
+            |'w' -> (record_date, Weekly)
+            |'m' -> (record_date, Monthly)
+            |'y' -> (record_date, Yearly)
+            |'n' -> (record_date, Never)
+            |_   -> raise (Failure "should never happen")
+    else
+        (None, Never)
+    in
+    let text = read_string_default "Text" "" in
+    if yesno "Confirm" false then
+        Some {text     = text;
+              complete = false;
+              repeat   = repeat;
+              date     = date}
+    else
+        None
 
 (* display the working schedule *)
 let display_schedule () =
