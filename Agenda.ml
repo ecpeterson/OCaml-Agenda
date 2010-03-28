@@ -38,7 +38,7 @@ let read_item () =
     let text  = print_string "Text: "; read_line () in
     let response = print_string "Confirm [yN]: "; flush stdout;
         read_line () in
-    match response.[0] with
+    match (if String.length response > 0 then response.[0] else 'n') with
     |'y' | 'Y' -> Some {text = text;
                         complete = false;
                         repeat = repeat;
