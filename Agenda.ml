@@ -3,6 +3,8 @@ open Date
 open ReadKey
 open Schedule
 
+type loop_msg = ErrMsg of string | Notice of string | No_msg
+
 (* generic error string *)
 let invalid_string = "Invalid choice."
 
@@ -153,17 +155,22 @@ let display_schedule () =
     ds_aux (Hashtbl.find !schedule !schedule_title) old_date 1
 
 (* the main loop for the program *)
-let rec loop err_msg =
+let rec loop msg =
     alter_schedule trim_schedule;
     print_string (clear_screen ());
     display_schedule ();
-    (match err_msg with
-    | Some s -> print_endline (
+    (match msg with
+    | ErrMsg s -> print_endline (
         (set_style [Reset;Bright] Red Black)
       ^ s
       ^ (set_style [Reset] White Black)
       )
-    | None -> ());
+    | Notice s -> print_endline (
+        (set_style [Reset] Blue Black)
+      ^ s
+      ^ (set_style [Reset] White Black)
+      )
+    | No_msg -> ());
     do_menu menu
 (* parses the 'menu' list given below, handles an abstract UI *)
 and do_menu menu =
@@ -197,14 +204,14 @@ and do_menu menu =
         match e with
         (* if the user fucked up, do it again *)
         | Sys.Break -> raise Sys.Break
-        | Failure s -> loop (Some s)
-        | _         -> loop (Some "Unknown error")
+        | Failure s -> loop (ErrMsg s)
+        | _         -> loop (ErrMsg "Unknown error")
 (* and the meaty part of the menu, parsed by do_menu *)
 and menu =
     ["Add item", 'a', (fun () ->
         begin match read_item () with None -> () | Some item ->
         alter_schedule (fun x -> List.sort compare_items (item :: x)) end;
-        loop None);
+        loop No_msg);
      "Toggle completion", 't', (fun () ->
          print_string "Item: ";
          let sched = Hashtbl.find !schedule !schedule_title in
@@ -212,13 +219,15 @@ and menu =
              let i = List.nth sched (read_int () - 1) in
              i.complete <- not i.complete
          with _ -> print_endline invalid_string end;
-         loop None);
+         loop No_msg);
      "Delete item", 'd', (fun () ->
          print_string "Item: ";
          alter_schedule (fun x -> delete_item x (read_int ()));
-         loop None);
-     "Refresh screen", 'r', (fun () -> loop None);
-     "Write schedule", 'w', (fun () -> write_schedule (); loop None);
+         loop No_msg);
+     "Refresh screen", 'r', (fun () -> loop No_msg);
+     "Write schedule", 'w', (fun () ->
+         write_schedule ();
+         loop (Notice ("Wrote schedule to " ^ Schedule.filename)));
      "Change schedule", 's', (fun () ->
         print_endline "Available lists are:";
         Hashtbl.iter (fun a b -> print_endline ("    " ^ a)) !schedule;
@@ -233,7 +242,7 @@ and menu =
                     schedule_title := response;
                     Hashtbl.add !schedule response []
                 |_ -> () end;
-        loop None);
+        loop No_msg);
      "Quit", 'q', (fun () -> ())]
 
 (* entry point for the program *)
@@ -241,7 +250,7 @@ let _ =
     Sys.catch_break true;
     read_schedule ();
     (try
-        loop None
+        loop No_msg
     with
     | Failure s -> Printf.printf "Error: %s\n" s
     | Sys.Break -> print_endline ""
