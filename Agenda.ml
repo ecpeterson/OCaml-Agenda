@@ -236,12 +236,10 @@ and menu =
         begin try let _ = Hashtbl.find !schedule response in
             schedule_title := response
         with Not_found ->
-            print_string "Schedule does not exist!  Do you want to create it? [yN]: ";
-            match read_line () with
-                |"Y" | "y" ->
-                    schedule_title := response;
-                    Hashtbl.add !schedule response []
-                |_ -> () end;
+            if yesno "Schedule does not exist!  Do you want to create it?" false then
+                schedule_title := response;
+                Hashtbl.add !schedule response []
+        end
         loop No_msg);
      "Quit", 'q', (fun () -> ())]
 
