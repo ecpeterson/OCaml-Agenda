@@ -30,7 +30,7 @@ let read_char_default tag allowed default =
         )
     in
     Printf.printf "%s [%s]: " tag choices;
-    cbreak stdin;
+    cbreak stdin false;
     let ret =
         try
             let rec rcd_aux () =
@@ -43,9 +43,9 @@ let read_char_default tag allowed default =
                 | _      -> rcd_aux ())
             in rcd_aux ()
         with e ->
-            (cooked stdin; raise e)
+            (cooked stdin true; raise e)
     in
-    cooked stdin;
+    cooked stdin true;
     Printf.printf "%c\n" ret;
     ret
 
@@ -58,7 +58,7 @@ let read_string_default tag default =
 
 let yesno tag default =
     Printf.printf "%s [%s]: " tag (if default then "Yn" else "yN");
-    cbreak stdin;
+    cbreak stdin false;
     let ret =
         try
             let rec yesno_aux () =
@@ -72,9 +72,9 @@ let yesno tag default =
                  | _      -> yesno_aux ())
             in yesno_aux ()
         with e ->
-            (cooked stdin; raise e)
+            (cooked stdin true; raise e)
     in
-    cooked stdin;
+    cooked stdin true;
     Printf.printf "%c\n" (if ret then 'y' else 'n');
     ret
 
@@ -180,20 +180,20 @@ and do_menu menu =
     (* ask for a choice *)
     try
         print_string "Choice: ";
-        cbreak stdin;
+        cbreak stdin false;
         let choice =
             match readkey stdin with
             | Char c -> (Printf.printf "%c\n" c; c)
             | _               -> raise (Failure invalid_string)
         in
-        cooked stdin;
+        cooked stdin true;
         let rec iterate menu choice =
             match menu with
                 (_, c, f) :: menu -> if c = choice then f () else iterate menu choice
                |[] -> raise (Failure invalid_string) in
         iterate menu choice
     with e ->
-        cooked stdin;
+        cooked stdin true;
         match e with
         (* if the user fucked up, do it again *)
         | Sys.Break -> raise Sys.Break

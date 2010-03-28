@@ -6,24 +6,24 @@ exception Invalid_escape
 
 let escape_timeout = 0.05
 
-let cbreak fh =
+let cbreak fh echo =
     let fd = descr_of_in_channel fh in
     let termios = tcgetattr fd in
     termios.c_icanon <- false;
-    termios.c_echo   <- false;
-    termios.c_echoe  <- false;
-    termios.c_echok  <- false;
-    termios.c_echonl <- false;
+    termios.c_echo   <- echo;
+    termios.c_echoe  <- echo;
+    termios.c_echok  <- echo;
+    termios.c_echonl <- echo;
     tcsetattr fd TCSANOW termios
 
-let cooked fh =
+let cooked fh echo =
     let fd = descr_of_in_channel fh in
     let termios = tcgetattr fd in
     termios.c_icanon <- true;
-    termios.c_echo   <- true;
-    termios.c_echoe  <- true;
-    termios.c_echok  <- true;
-    termios.c_echonl <- true;
+    termios.c_echo   <- echo;
+    termios.c_echoe  <- echo;
+    termios.c_echok  <- echo;
+    termios.c_echonl <- echo;
     tcsetattr fd TCSANOW termios
 
 let readchar_raw fd =
