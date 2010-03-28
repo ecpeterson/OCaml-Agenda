@@ -15,6 +15,7 @@ type date = {
     year: int;
     month: int;
     day: int }
+let old_date = {year = 0; month = 0; day = 0}
 
 (* routines to print out the left-most column of the schedule display *)
 let print_date date =
@@ -99,9 +100,18 @@ let within_days date num =
 (* display the working schedule *)
 let display_schedule () =
     let our_date = gen_date () in
-    let rec ds_aux items old_date number =
+    let rec ds_aux incoming_items old_date number =
         (* iterate through the sorted items *)
-        match items with [] -> () | item :: items ->
+        match incoming_items with [] -> () | item :: items ->
+        (* check to see if we need to display the current date *)
+        let next_date = match item.date with None -> our_date | Some date -> date in
+        if next_date >= our_date && our_date > old_date then begin
+            print_string ((set_style [Reset;Bright] White Black) ^
+                          (Printf.sprintf "%04d/%02d/%02d ====== Today's Date\n"
+                              our_date.year our_date.month our_date.day) ^
+                          (set_style [Reset] White Black)) ;
+            ds_aux incoming_items our_date number
+        end else begin
         (* print either the date, a dateless line, or a continuation thing *)
         (match item.date with
             |None -> print_string "----------"
@@ -124,15 +134,15 @@ let display_schedule () =
         Printf.printf "%02d %s\n" number item.text;
         match item.date with
             |None -> ds_aux items our_date (number + 1)
-            |Some date -> ds_aux items date (number + 1) in
+            |Some date -> ds_aux items date (number + 1)
+        end in
     (* print the header *)
     print_string AnsiLib.reset_cursor;
-    let header = (set_style [Reset;Bright] White Black) ^ (Printf.sprintf
-            "================= List: %s\n%04d/%02d/%02d ====== Today's Date\n"
-            !schedule_title our_date.year our_date.month our_date.day) ^
+    let header = (set_style [Reset;Bright] White Black) ^
+        (Printf.sprintf "================= List: %s\n" !schedule_title) ^
         (set_style [Reset] White Black) in
     print_string header;
-    ds_aux (Hashtbl.find !schedule !schedule_title) our_date 1
+    ds_aux (Hashtbl.find !schedule !schedule_title) old_date 1
 
 (* delete the num'th item of schedule *)
 let rec delete_item schedule num =
@@ -148,10 +158,12 @@ let trim_schedule schedule =
                 |None ->
                     ts_aux (item :: prefix) items
                 |Some incoming_date ->
-                    if incoming_date < our_date then begin
+                    if (incoming_date < our_date) then begin
                         (* if it's a repeating item, spawn a new one *)
-                        match item.repeat with
-                        |Weekly ->
+                        match (item.complete, item.repeat) with
+                        |(false, _) ->
+                            ts_aux (item :: prefix) items
+                        |(_, Weekly) ->
                             let tm : Unix.tm = {tm_sec = 0;
                                       tm_min = 0;
                                       tm_hour = 12;
@@ -168,7 +180,7 @@ let trim_schedule schedule =
                                       day = tm.tm_mday};
                                 complete = false} in
                             ts_aux (new_item :: prefix) items
-                        |Monthly ->
+                        |(_, Monthly) ->
                             let new_item = {item with date =
                                 Some (if incoming_date.month = 12 then
                                         {incoming_date with month = 1;
@@ -178,13 +190,13 @@ let trim_schedule schedule =
                                             incoming_date.month + 1});
                                 complete = false} in
                             ts_aux (new_item :: prefix) items
-                        |Yearly ->
+                        |(_, Yearly) ->
                             let new_item = {item with date =
                                 Some {incoming_date with year =
                                     incoming_date.year + 1 };
                                 complete = false} in
                             ts_aux (new_item :: prefix) items
-                        |Never -> ts_aux prefix items
+                        |(_, Never) -> ts_aux prefix items
                     end else schedule @ prefix in
     List.sort compare_items (ts_aux [] schedule)
 
