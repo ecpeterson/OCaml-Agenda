@@ -1,8 +1,20 @@
 open Unix
 
-type key = Char of char | UP | DOWN | LEFT | RIGHT
+type key =
+    | Char of char
+    | UP
+    | DOWN
+    | LEFT
+    | RIGHT
+    | BACKSPACE
+    | TAB
+    | ENTER
+    | ESCAPE
+    | DELETE
+    | Unknown of char
 exception Timed_out
 exception Invalid_escape
+exception Invalid_key
 
 let escape_timeout = 0.05
 
@@ -43,9 +55,30 @@ let readchar fh timeout =
       )
     | None -> readchar_raw fd
 
+let key_of_char c =
+    match Char.code c with
+    | n when n >= 32 && n < 127 -> Char c
+    | 8                         -> BACKSPACE
+    | 9                         -> TAB
+    | 10                        -> ENTER
+    | 27                        -> ESCAPE
+    | 127                       -> DELETE
+    | n                         -> Unknown c
+
+let char_of_key k =
+    match k with
+    | Char c    -> c
+    | BACKSPACE -> Char.chr 8
+    | TAB       -> Char.chr 9
+    | ENTER     -> Char.chr 10
+    | ESCAPE    -> Char.chr 27
+    | DELETE    -> Char.chr 127
+    | Unknown c -> c
+    | _         -> raise Invalid_key
+
 let readkey fh =
-    let c = readchar fh None in
-    if c == '\027' then
+    let k = key_of_char (readchar fh None) in
+    if k == ESCAPE then
         try
             let c = readchar fh (Some escape_timeout) in
             if c == '[' then
@@ -57,12 +90,12 @@ let readkey fh =
                 | 'D' -> LEFT
                 | _   -> raise Invalid_escape
             else
-                raise Invalid_escape
+                ESCAPE
         (* this just drops invalid escape sequences on the floor other than
          * the initial escape key, but that's probably fine for now *)
         with
-        | Timed_out -> Char c
-        | Invalid_escape -> Char c
-        | e -> raise e
+        | Timed_out      -> ESCAPE
+        | Invalid_escape -> ESCAPE
+        | e              -> raise e
     else
-        Char c
+        k

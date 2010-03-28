@@ -67,8 +67,8 @@ let yesno tag default =
                  | Char c -> (match c with
                               | 'Y' | 'y' -> true
                               | 'N' | 'n' -> false
-                              | '\n'      -> default
                               | _         -> yesno_aux ())
+                 | ENTER  -> default
                  | _      -> yesno_aux ())
             in yesno_aux ()
         with e ->
