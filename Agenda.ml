@@ -179,12 +179,16 @@ let rec loop () =
     do_menu menu
 (* parses the 'menu' list given below, handles an abstract UI *)
 and do_menu menu =
+    let opt_count = ref 0 in
     let rec print_menu menu =
         match menu with [] -> () | (item, c, _) :: menu ->
-        Printf.printf "%c) %s\n" c item;
+        Printf.printf "%c) %-20s" c item;
+        opt_count := !opt_count + 1;
+        if !opt_count mod 3 == 0 then print_endline "";
         print_menu menu in
     (* print the menu *)
     print_menu menu;
+    if !opt_count mod 3 != 0 then print_endline "";
     (* ask for a choice *)
     try
         print_string "Choice: ";
