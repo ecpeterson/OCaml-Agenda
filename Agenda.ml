@@ -1,5 +1,6 @@
 open AnsiLib
 open Date
+open ReadKey
 
 (* generic error string *)
 let invalid_string = "Invalid choice."
@@ -187,13 +188,13 @@ and do_menu menu =
     (* ask for a choice *)
     try
         print_string "Choice: ";
-        ReadKey.cbreak stdin;
+        cbreak stdin;
         let choice =
-            match ReadKey.readkey stdin with
-            | ReadKey.Char c -> (Printf.printf "%c\n" c; c)
+            match readkey stdin with
+            | Char c -> (Printf.printf "%c\n" c; c)
             | _               -> raise (Failure invalid_string)
         in
-        ReadKey.cooked stdin;
+        cooked stdin;
         let rec iterate menu choice =
             match menu with
                 (_, c, f) :: menu -> if c = choice then f () else iterate menu choice
