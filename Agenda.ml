@@ -32,15 +32,18 @@ let read_char_default tag allowed default =
     Printf.printf "%s [%s]: " tag choices;
     cbreak stdin;
     let ret =
-        let rec rcd_aux () =
-            let key = readkey stdin in
-            (match key with
-             | Char c -> (if List.exists (fun cc -> c == cc) allowed then
-                              c
-                          else
-                              rcd_aux())
-             | _      -> rcd_aux ())
-        in rcd_aux ()
+        try
+            let rec rcd_aux () =
+                let key = readkey stdin in
+                (match key with
+                | Char c -> (if List.exists (fun cc -> c == cc) allowed then
+                                c
+                            else
+                                rcd_aux())
+                | _      -> rcd_aux ())
+            in rcd_aux ()
+        with e ->
+            (cooked stdin; raise e)
     in
     cooked stdin;
     Printf.printf "%c\n" ret;
@@ -57,16 +60,19 @@ let yesno tag default =
     Printf.printf "%s [%s]: " tag (if default then "Yn" else "yN");
     cbreak stdin;
     let ret =
-        let rec yesno_aux () =
-            let key = readkey stdin in
-            (match key with
-             | Char c -> (match c with
-                          | 'Y' | 'y' -> true
-                          | 'N' | 'n' -> false
-                          | '\n'      -> default
-                          | _         -> yesno_aux ())
-             | _      -> yesno_aux ())
-        in yesno_aux ()
+        try
+            let rec yesno_aux () =
+                let key = readkey stdin in
+                (match key with
+                 | Char c -> (match c with
+                              | 'Y' | 'y' -> true
+                              | 'N' | 'n' -> false
+                              | '\n'      -> default
+                              | _         -> yesno_aux ())
+                 | _      -> yesno_aux ())
+            in yesno_aux ()
+        with e ->
+            (cooked stdin; raise e)
     in
     cooked stdin;
     Printf.printf "%c\n" (if ret then 'y' else 'n');
@@ -186,10 +192,13 @@ and do_menu menu =
                 (_, c, f) :: menu -> if c = choice then f () else iterate menu choice
                |[] -> raise (Failure invalid_string) in
         iterate menu choice
-    with
-    (* if the user fucked up, do it again *)
-    | Failure s -> loop (Some s)
-    | _         -> loop (Some "Unknown error")
+    with e ->
+        cooked stdin;
+        match e with
+        (* if the user fucked up, do it again *)
+        | Sys.Break -> raise Sys.Break
+        | Failure s -> loop (Some s)
+        | _         -> loop (Some "Unknown error")
 (* and the meaty part of the menu, parsed by do_menu *)
 and menu =
     ["Add item", 'a', (fun () ->
@@ -229,6 +238,12 @@ and menu =
 
 (* entry point for the program *)
 let _ =
+    Sys.catch_break true;
     read_schedule ();
-    loop None;
+    (try
+        loop None
+    with
+    | Failure s -> Printf.printf "Error: %s\n" s
+    | Sys.Break -> print_endline ""
+    | _         -> print_endline "Unknown error");
     write_schedule ()
