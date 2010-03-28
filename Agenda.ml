@@ -1,6 +1,7 @@
 open AnsiLib
 open Date
 open ReadKey
+open Schedule
 
 (* generic error string *)
 let invalid_string = "Invalid choice."
@@ -8,15 +9,6 @@ let invalid_string = "Invalid choice."
 (* routines to print out the left-most column of the schedule display *)
 let print_spacer () =
     print_string "        |-"
-
-(* datum for a single entry, note that changing this will alter the file format
- * used to store the schedule via Marshal. *)
-type repeatT = Weekly | Monthly | Yearly | Never
-type item = {
-    text: string;
-    mutable complete: bool;
-    repeat: repeatT;
-    date: date option}
 
 (* a helper routine for reading labeled integers with default values *)
 let read_int_default tag default =
@@ -52,20 +44,6 @@ let read_item () =
                         repeat = repeat;
                         date = date}
     |_ -> None
-
-(* this is our working schedule *)
-let schedule_title = ref "Agenda"
-let schedule = ref (let h = Hashtbl.create 1 in
-                    Hashtbl.add h !schedule_title ([]: item list); h)
-let filename = (Sys.getenv "HOME") ^ "/.schedule.sch"
-
-(* lexicographic compare on items isn't quite satisfying *)
-let compare_items a b =
-    match (a.date, b.date) with
-        |None,   None   -> 0
-        |Some _, None   -> -1
-        |None,   Some _ -> 1
-        |Some x, Some y -> compare x y
 
 (* display the working schedule *)
 let display_schedule () =
@@ -113,63 +91,6 @@ let display_schedule () =
         (set_style [Reset] White Black) in
     print_string header;
     ds_aux (Hashtbl.find !schedule !schedule_title) old_date 1
-
-(* delete the num'th item of schedule *)
-let rec delete_item schedule num =
-    match schedule with [] -> [] | s :: ss ->
-    if num = 1 then ss else s :: delete_item ss (num-1)
-
-(* rip off the head of the schedule until we get to the current date *)
-let trim_schedule schedule =
-    let our_date = gen_date () in
-    let rec ts_aux prefix schedule =
-        match schedule with |[] -> List.rev prefix |item :: items ->
-            match item.date with
-                |None ->
-                    ts_aux (item :: prefix) items
-                |Some incoming_date ->
-                    if (incoming_date < our_date) then begin
-                        (* if it's a repeating item, spawn a new one *)
-                        match (item.complete, item.repeat) with
-                        |(false, _) ->
-                            ts_aux (item :: prefix) items
-                        |(_, Weekly) ->
-                            let new_item = {item with
-                                date     = Some (add_week incoming_date);
-                                complete = false} in
-                            ts_aux (new_item :: prefix) items
-                        |(_, Monthly) ->
-                            let new_item = {item with
-                                date     = Some (add_month incoming_date);
-                                complete = false} in
-                            ts_aux (new_item :: prefix) items
-                        |(_, Yearly) ->
-                            let new_item = {item with
-                                date     = Some (add_year incoming_date);
-                                complete = false} in
-                            ts_aux (new_item :: prefix) items
-                        |(_, Never) -> ts_aux prefix items
-                    end else schedule @ prefix in
-    List.sort compare_items (ts_aux [] schedule)
-
-(* file io routines *)
-let read_schedule () =
-    try
-        let fh = open_in_bin filename in
-        schedule := Marshal.from_channel fh;
-        close_in fh
-    with _ -> print_endline "Couldn't open preexisting schedule."
-
-let write_schedule () =
-    try
-        let fh = open_out_bin filename in
-        Marshal.to_channel fh !schedule [];
-        close_out fh
-    with _ -> print_endline "Couldn't write changes to schedule."
-
-let alter_schedule f =
-    Hashtbl.replace !schedule !schedule_title
-        (f (Hashtbl.find !schedule !schedule_title))
 
 (* the main loop for the program *)
 let rec loop () =
