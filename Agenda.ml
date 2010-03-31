@@ -42,6 +42,7 @@ let read_char_default tag allowed default =
                                 c
                             else
                                 rcd_aux())
+                | ENTER  -> default
                 | _      -> rcd_aux ())
             in rcd_aux ()
         with e ->
