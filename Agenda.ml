@@ -85,13 +85,30 @@ let yesno tag default =
     ret
 
 (* read in a whole item, allow user to cancel, return item option *)
-let read_item () =
+let read_item maybe_item =
     let our_date = gen_date () in
-    let (date, repeat) = if yesno "Date" true then
-        let repeatq = read_char_default "Repeat? (weekly, monthly, yearly, never)" ['w';'m';'y';'n'] 'n' in
-        let year  = read_int_default "Year"  our_date.year in
-        let month = read_int_default "Month" our_date.month in
-        let day   = read_int_default "Day"   our_date.day in
+    let item = match maybe_item with
+    | Some i -> i
+    | None   -> {text     = "";
+                 complete = false;
+                 repeat   = Never;
+                 date     = Some our_date}
+    in
+    let (in_date, def_date) = match item.date with
+    | Some d -> (d, true)
+    | None   -> (our_date, false)
+    in
+    let (date, repeat) = if yesno "Date" def_date then
+        let def_repeatq = match item.repeat with
+        | Weekly  -> 'w'
+        | Monthly -> 'm'
+        | Yearly  -> 'y'
+        | Never   -> 'n'
+        in
+        let repeatq = read_char_default "Repeat? (weekly, monthly, yearly, never)" ['w';'m';'y';'n'] def_repeatq in
+        let year  = read_int_default "Year"  in_date.year in
+        let month = read_int_default "Month" in_date.month in
+        let day   = read_int_default "Day"   in_date.day in
         let record_date = Some {year = year; month = month; day = day} in
         match repeatq with
             |'w' -> (record_date, Weekly)
@@ -102,7 +119,7 @@ let read_item () =
     else
         (None, Never)
     in
-    let text = read_string_default "Text" "" in
+    let text = read_string_default "Text" item.text in
     {text     = text;
      complete = false;
      repeat   = repeat;
@@ -215,7 +232,7 @@ and do_menu menu =
 (* and the meaty part of the menu, parsed by do_menu *)
 and menu =
     ["Add item", 'a', (fun () ->
-        let item = read_item () in
+        let item = read_item None in
         alter_schedule (fun x -> List.sort compare_items (item :: x));
         loop No_msg);
      "Toggle completion", 't', (fun () ->
