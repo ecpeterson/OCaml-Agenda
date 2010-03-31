@@ -9,6 +9,7 @@ type key =
     | BACKSPACE
     | TAB
     | ENTER
+    | FORMFEED
     | ESCAPE
     | DELETE
     | Unknown of char
@@ -61,6 +62,7 @@ let key_of_char c =
     | 8                         -> BACKSPACE
     | 9                         -> TAB
     | 10                        -> ENTER
+    | 12                        -> FORMFEED
     | 27                        -> ESCAPE
     | 127                       -> DELETE
     | n                         -> Unknown c
@@ -71,6 +73,7 @@ let char_of_key k =
     | BACKSPACE -> Char.chr 8
     | TAB       -> Char.chr 9
     | ENTER     -> Char.chr 10
+    | FORMFEED  -> Char.chr 12
     | ESCAPE    -> Char.chr 27
     | DELETE    -> Char.chr 127
     | Unknown c -> c

@@ -4,6 +4,7 @@ open ReadKey
 open Schedule
 
 type loop_msg = ErrMsg of string | Notice of string | No_msg
+exception Refresh
 
 (* generic error string *)
 let invalid_string = "Invalid choice."
@@ -188,8 +189,9 @@ and do_menu menu =
         cbreak stdin false;
         let choice =
             match readkey stdin with
-            | Char c -> (Printf.printf "%c\n" c; c)
-            | _               -> raise (Failure invalid_string)
+            | Char c   -> (Printf.printf "%c\n" c; c)
+            | FORMFEED -> raise Refresh
+            | _        -> raise (Failure invalid_string)
         in
         cooked stdin true;
         let rec iterate menu choice =
@@ -203,8 +205,9 @@ and do_menu menu =
     with e ->
         cooked stdin true;
         match e with
-        (* if the user fucked up, do it again *)
+        | Refresh   -> loop No_msg
         | Sys.Break -> raise Sys.Break
+        (* if the user fucked up, do it again *)
         | Failure s -> loop (ErrMsg s)
         | _         -> loop (ErrMsg "Unknown error")
 (* and the meaty part of the menu, parsed by do_menu *)
@@ -225,7 +228,6 @@ and menu =
          print_string "Item: ";
          alter_schedule (fun x -> delete_item x (read_int ()));
          loop No_msg);
-     "Refresh screen", 'r', (fun () -> loop No_msg);
      "Write schedule", 'w', (fun () ->
          write_schedule ();
          loop (Notice ("Wrote schedule to " ^ Schedule.filename)));
