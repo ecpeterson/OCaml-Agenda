@@ -100,13 +100,10 @@ let read_item () =
         (None, Never)
     in
     let text = read_string_default "Text" "" in
-    if yesno "Confirm" false then
-        Some {text     = text;
-              complete = false;
-              repeat   = repeat;
-              date     = date}
-    else
-        None
+    {text     = text;
+     complete = false;
+     repeat   = repeat;
+     date     = date}
 
 (* display the working schedule *)
 let display_schedule () =
@@ -213,8 +210,8 @@ and do_menu menu =
 (* and the meaty part of the menu, parsed by do_menu *)
 and menu =
     ["Add item", 'a', (fun () ->
-        begin match read_item () with None -> () | Some item ->
-        alter_schedule (fun x -> List.sort compare_items (item :: x)) end;
+        let item = read_item () in
+        alter_schedule (fun x -> List.sort compare_items (item :: x));
         loop No_msg);
      "Toggle completion", 't', (fun () ->
          print_string "Item: ";
