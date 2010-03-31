@@ -6,6 +6,9 @@ open Schedule
 type loop_msg = ErrMsg of string | Notice of string | No_msg
 exception Refresh
 
+(* default item choice *)
+let last_idx = ref 1
+
 (* generic error string *)
 let invalid_string = "Invalid choice."
 
@@ -233,25 +236,32 @@ and do_menu menu =
 and menu =
     ["Add item", 'a', (fun () ->
         let item = read_item None in
-        alter_schedule (fun x -> item :: x);
+        alter_schedule (fun x ->
+            last_idx := sorted_index_for_item x item;
+            item :: x);
         loop No_msg);
      "Edit item", 'e', (fun () ->
-         print_string "Item: ";
-         let idx = read_int () in
+         let idx = read_int_default "Item" !last_idx in
          let item = read_item (Some (lookup_item idx)) in
-         alter_schedule (fun x -> replace_item x idx item);
+         alter_schedule (fun x ->
+             last_idx := sorted_index_for_item (delete_item x idx) item;
+             replace_item x idx item);
          loop No_msg);
      "Toggle completion", 't', (fun () ->
-         print_string "Item: ";
-         let sched = Hashtbl.find !schedule !schedule_title in
-         begin try
-             let i = List.nth sched (read_int () - 1) in
-             i.complete <- not i.complete
-         with _ -> print_endline invalid_string end;
+         let idx = read_int_default "Item" !last_idx in
+         let item = lookup_item idx in
+         item.complete <- not item.complete;
+         begin match item.date with
+         (* it'll get cleaned *)
+         | Some date when item.complete && date < gen_date ()
+             -> last_idx := 1
+         | _ -> last_idx := idx
+         end;
          loop No_msg);
      "Delete item", 'd', (fun () ->
-         print_string "Item: ";
-         alter_schedule (fun x -> delete_item x (read_int ()));
+         let idx = read_int_default "Item" !last_idx in
+         alter_schedule (fun x -> delete_item x idx);
+         last_idx := 1;
          loop No_msg);
      "Write schedule", 'w', (fun () ->
          write_schedule ();
@@ -262,11 +272,13 @@ and menu =
         print_string "Change list to: ";
         let response = read_line () in
         begin try let _ = Hashtbl.find !schedule response in
-            schedule_title := response
+            schedule_title := response;
+            last_idx := 1
         with Not_found ->
             if yesno "Schedule does not exist!  Do you want to create it?" false then
                 schedule_title := response;
-                Hashtbl.add !schedule response []
+                Hashtbl.add !schedule response [];
+                last_idx := 1
         end;
         loop No_msg);
      "Quit", 'q', (fun () -> ())]

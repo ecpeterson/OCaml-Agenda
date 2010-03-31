@@ -49,6 +49,16 @@ let rec replace_item schedule idx item =
                    x::(replace_item xs (idx - 1) item)
     | []    -> []
 
+let sorted_index_for_item schedule item =
+    let rec sifi_aux schedule item idx =
+        match schedule with
+        | x::xs -> if compare_items item x != 1 then
+                       idx
+                   else
+                       sifi_aux xs item (idx + 1)
+        | []    -> idx
+    in sifi_aux schedule item 1
+
 (* rip off the head of the schedule until we get to the current date *)
 let trim_schedule schedule =
     let our_date = gen_date () in
