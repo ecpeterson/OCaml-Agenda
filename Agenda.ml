@@ -198,8 +198,11 @@ and do_menu menu =
         let rec iterate menu choice =
             match menu with
                 (_, c, f) :: menu -> if c = choice then f () else iterate menu choice
-               |[] -> raise (Failure invalid_string) in
-        iterate menu choice
+               |[] -> raise (Failure invalid_string)
+        in
+        try
+            iterate menu choice
+        with Sys.Break -> loop (Notice "Cancelled") | e -> raise e
     with e ->
         cooked stdin true;
         match e with
