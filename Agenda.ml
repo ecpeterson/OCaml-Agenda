@@ -54,11 +54,13 @@ let read_char_default tag allowed default =
     ret
 
 let read_string_default tag default =
-    Printf.printf "%s: " tag;
+    if String.length default == 0 then
+        Printf.printf "%s: " tag
+    else
+        Printf.printf "%s [\"%s\"]: " tag default;
     match read_line () with
     | "" -> default
     | s  -> s
-
 
 let yesno tag default =
     Printf.printf "%s [%s]: " tag (if default then "Yn" else "yN");
