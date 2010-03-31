@@ -235,6 +235,12 @@ and menu =
         let item = read_item None in
         alter_schedule (fun x -> List.sort compare_items (item :: x));
         loop No_msg);
+     "Edit item", 'e', (fun () ->
+         print_string "Item: ";
+         let idx = read_int () in
+         let item = read_item (Some (lookup_item idx)) in
+         alter_schedule (fun x -> replace_item x idx item);
+         loop No_msg);
      "Toggle completion", 't', (fun () ->
          print_string "Item: ";
          let sched = Hashtbl.find !schedule !schedule_title in

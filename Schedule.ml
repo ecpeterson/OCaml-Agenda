@@ -13,6 +13,8 @@ type item = {
 let schedule_title = ref "Agenda"
 let schedule = ref (let h = Hashtbl.create 1 in
                     Hashtbl.add h !schedule_title ([]: item list); h)
+let current_schedule () =
+    Hashtbl.find !schedule !schedule_title
 let filename = (Sys.getenv "HOME") ^ "/.schedule.sch"
 
 (* lexicographic compare on items isn't quite satisfying *)
@@ -23,10 +25,29 @@ let compare_items a b =
         |None,   Some _ -> 1
         |Some x, Some y -> compare x y
 
+let lookup_item idx =
+    let schedule = current_schedule () in
+    let rec li_aux idx sched =
+        match sched with
+        | x::xs -> if idx == 1 then x else li_aux (idx - 1) xs
+        | []    -> raise (Failure "lookup_item: out of bounds")
+    in li_aux idx schedule
+
+let alter_schedule f =
+    Hashtbl.replace !schedule !schedule_title (f (current_schedule ()))
+
 (* delete the num'th item of schedule *)
 let rec delete_item schedule num =
     match schedule with [] -> [] | s :: ss ->
     if num = 1 then ss else s :: delete_item ss (num-1)
+
+let rec replace_item schedule idx item =
+    match schedule with
+    | x::xs -> if idx == 1 then
+                   item::xs
+               else
+                   x::(replace_item xs (idx - 1) item)
+    | []    -> []
 
 (* rip off the head of the schedule until we get to the current date *)
 let trim_schedule schedule =
@@ -75,8 +96,3 @@ let write_schedule () =
         Marshal.to_channel fh !schedule [];
         close_out fh
     with _ -> print_endline "Couldn't write changes to schedule."
-
-let alter_schedule f =
-    Hashtbl.replace !schedule !schedule_title
-        (f (Hashtbl.find !schedule !schedule_title))
-
