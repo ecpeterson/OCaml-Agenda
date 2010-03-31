@@ -233,7 +233,7 @@ and do_menu menu =
 and menu =
     ["Add item", 'a', (fun () ->
         let item = read_item None in
-        alter_schedule (fun x -> List.sort compare_items (item :: x));
+        alter_schedule (fun x -> item :: x);
         loop No_msg);
      "Edit item", 'e', (fun () ->
          print_string "Item: ";
