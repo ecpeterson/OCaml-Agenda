@@ -239,7 +239,7 @@ and menu =
             if yesno "Schedule does not exist!  Do you want to create it?" false then
                 schedule_title := response;
                 Hashtbl.add !schedule response []
-        end
+        end;
         loop No_msg);
      "Quit", 'q', (fun () -> ())]
 
