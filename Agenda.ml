@@ -87,7 +87,7 @@ let yesno tag default =
     Printf.printf "%c\n" (if ret then 'y' else 'n');
     ret
 
-(* read in a whole item, allow user to cancel, return item option *)
+(* read in a whole item and return it *)
 let read_item maybe_item =
     let our_date = gen_date () in
     let item = match maybe_item with
