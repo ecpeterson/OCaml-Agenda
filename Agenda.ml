@@ -269,8 +269,7 @@ and menu =
      "Change schedule", 's', (fun () ->
         print_endline "Available lists are:";
         Hashtbl.iter (fun a b -> print_endline ("    " ^ a)) !schedule;
-        print_string "Change list to: ";
-        let response = read_line () in
+        let response = read_string_default "Change list to" "Agenda" in
         begin try let _ = Hashtbl.find !schedule response in
             schedule_title := response;
             last_idx := 1
