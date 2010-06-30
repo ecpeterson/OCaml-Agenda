@@ -155,6 +155,10 @@ let display_schedule () =
         print_string (match (date_offset, item.complete) with
             | (Some n, true) when n <= 7 -> (color_text Blue ^ (string_of_int n))
             | (_, true) -> (color_text Blue ^ "x")
+            | (Some n, false) when n < -7 ->
+                (set_style [Reset;Bright] Magenta Black ^ "+")
+            | (Some n, false) when n < 0 && n >= -7 ->
+                (set_style [Reset;Bright] Magenta Black ^ (string_of_int (-n)))
             | (Some n, false) when n <= 1 ->
                 (set_style [Reset;Bright] Red Black ^ (string_of_int n))
             | (Some n, false) when n <= 3 ->
