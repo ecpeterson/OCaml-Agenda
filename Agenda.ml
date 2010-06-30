@@ -151,15 +151,17 @@ let display_schedule () =
         print_string " [";
         (* this is the part that deals with the checkboxes, ANSI color codes
          * are a bit ugly *)
-        print_string (if item.complete then
-                            (color_text Blue ^ "x")
-                      else if within_days item.date 1 then
-                            (set_style [Reset;Bright] Red Black    ^ "!")
-                      else if within_days item.date 3 then
-                            (set_style [Reset;Bright] Yellow Black ^ "!")
-                      else if within_days item.date 7 then
-                            (set_style [Reset;Bright] Green Black  ^ "!")
-                      else " ");
+        let date_offset = relative_offset item.date (Some our_date) in
+        print_string (match (date_offset, item.complete) with
+            | (Some n, true) when n <= 7 -> (color_text Blue ^ (string_of_int n))
+            | (_, true) -> (color_text Blue ^ "x")
+            | (Some n, false) when n <= 1 ->
+                (set_style [Reset;Bright] Red Black ^ (string_of_int n))
+            | (Some n, false) when n <= 3 ->
+                (set_style [Reset;Bright] Yellow Black ^ (string_of_int n))
+            | (Some n, false) when n <= 7 ->
+                (set_style [Reset;Bright] Green Black ^ (string_of_int n))
+            | (_, false) -> " ");
         print_string (color_text White ^ "] ");
         (* dump text and loop *)
         Printf.printf "%02d %s\n" number item.text;

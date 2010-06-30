@@ -21,14 +21,20 @@ let date_of_tm tm =
 let gen_date () =
     date_of_tm (localtime (time ()))
 
+let relative_offset date1 date2 =
+    match (date1, date2) with
+    | Some date1, Some date2 ->
+        let years = date1.year - date2.year in
+        let months = date1.month - date2.month + years*12 in
+        Some (date1.day - date2.day + months*30)
+    | _ -> None
+
 (* check to see if a date record is within num days of the current time *)
 let within_days date num =
-    let our_date = gen_date () in
-    match date with None -> false | Some date ->
-        let years = date.year - our_date.year in
-        let months = date.month - our_date.month + years*12 in
-        let days = date.day - our_date.day + months*30 in
-        if days <= num then true else false
+    let our_date = Some (gen_date ()) in
+    match relative_offset date our_date with
+        | None -> false
+        | Some days -> days <= num
 
 let add_week date =
     let tm : Unix.tm =
