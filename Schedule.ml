@@ -63,7 +63,7 @@ let sorted_index_for_item schedule item =
 let trim_schedule schedule =
     let our_date = gen_date () in
     let rec ts_aux prefix schedule =
-        match schedule with |[] -> List.rev prefix |item :: items ->
+        match schedule with |[] -> prefix |item :: items ->
             match item.date with
                 |None ->
                     ts_aux (item :: prefix) items
@@ -89,8 +89,8 @@ let trim_schedule schedule =
                                 complete = false} in
                             ts_aux (new_item :: prefix) items
                         |(_, Never) -> ts_aux prefix items
-                    end else schedule @ prefix in
-    List.sort compare_items (ts_aux [] schedule)
+                    end else ts_aux (item :: prefix) items in
+    List.sort compare_items (List.rev (ts_aux [] schedule))
 
 (* file io routines *)
 let read_schedule () =
