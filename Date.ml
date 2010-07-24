@@ -24,9 +24,17 @@ let gen_date () =
 let relative_offset date1 date2 =
     match (date1, date2) with
     | Some date1, Some date2 ->
-        let years = date1.year - date2.year in
-        let months = date1.month - date2.month + years*12 in
-        Some (date1.day - date2.day + months*30)
+        let (date1, _) = mktime { tm_sec = 0; tm_min = 0; tm_hour = 0;
+                                  tm_mday = date1.day;
+                                  tm_mon = date1.month - 1;
+                                  tm_year = date1.year - 1900;
+                                  tm_wday = 0; tm_yday = 0; tm_isdst = false; } in
+        let (date2, _) = mktime { tm_sec = 0; tm_min = 0; tm_hour = 0;
+                                  tm_mday = date2.day;
+                                  tm_mon = date2.month - 1;
+                                  tm_year = date2.year - 1900;
+                                  tm_wday = 0; tm_yday = 0; tm_isdst = false; } in
+        Some (int_of_float (date1 -. date2) / (60 * 60 * 24))
     | _ -> None
 
 (* check to see if a date record is within num days of the current time *)
