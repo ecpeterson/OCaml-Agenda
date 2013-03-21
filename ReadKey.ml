@@ -18,6 +18,7 @@ exception Invalid_escape
 exception Invalid_key
 
 let escape_timeout = 0.05
+let refresh_timeout = 15.0
 
 let cbreak fh echo =
     let fd = descr_of_in_channel fh in
@@ -49,6 +50,7 @@ let readchar fh timeout =
     let fd = descr_of_in_channel fh in
     match timeout with
     | Some t -> (
+        flush Pervasives.stdout;
         let (rout, _, _) = select [fd] [] [] t in
         match rout with
         | [fd] -> readchar_raw fd
@@ -80,7 +82,7 @@ let char_of_key k =
     | _         -> raise Invalid_key
 
 let readkey fh =
-    let k = key_of_char (readchar fh None) in
+    let k = key_of_char (readchar fh (Some refresh_timeout)) in
     if k == ESCAPE then
         try
             let c = readchar fh (Some escape_timeout) in

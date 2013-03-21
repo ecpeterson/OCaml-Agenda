@@ -40,14 +40,16 @@ let read_char_default tag allowed default =
     let ret =
         try
             let rec rcd_aux () =
-                let key = readkey stdin in
-                (match key with
-                | Char c -> (if List.exists (fun cc -> c == cc) allowed then
-                                c
-                            else
-                                rcd_aux())
-                | ENTER  -> default
-                | _      -> rcd_aux ())
+                try
+                    let key = readkey stdin in
+                    (match key with
+                    | Char c -> (if List.exists (fun cc -> c == cc) allowed then
+                                    c
+                                else
+                                    rcd_aux())
+                    | ENTER  -> default
+                    | _      -> rcd_aux ())
+                with Timed_out -> rcd_aux () | e -> raise e
             in rcd_aux ()
         with e ->
             (cooked stdin true; raise e)
@@ -71,14 +73,16 @@ let yesno tag default =
     let ret =
         try
             let rec yesno_aux () =
-                let key = readkey stdin in
-                (match key with
-                 | Char c -> (match c with
-                              | 'Y' | 'y' -> true
-                              | 'N' | 'n' -> false
-                              | _         -> yesno_aux ())
-                 | ENTER  -> default
-                 | _      -> yesno_aux ())
+                try
+                    let key = readkey stdin in
+                    (match key with
+                     | Char c -> (match c with
+                                  | 'Y' | 'y' -> true
+                                  | 'N' | 'n' -> false
+                                  | _         -> yesno_aux ())
+                     | ENTER  -> default
+                     | _      -> yesno_aux ())
+                with Timed_out -> yesno_aux () | e -> raise e
             in yesno_aux ()
         with e ->
             (cooked stdin true; raise e)
@@ -235,6 +239,7 @@ and do_menu menu =
         match e with
         | Refresh   -> loop No_msg
         | Sys.Break -> raise Sys.Break
+        | Timed_out -> loop No_msg
         (* if the user fucked up, do it again *)
         | Failure s -> loop (ErrMsg s)
         | _         -> loop (ErrMsg "Unknown error")
