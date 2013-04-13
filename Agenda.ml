@@ -99,13 +99,14 @@ let read_item maybe_item =
     | None   -> {text     = "";
                  complete = false;
                  repeat   = Never;
-                 date     = Some our_date}
+                 date     = Some our_date;
+                 priority = 2}
     in
     let (in_date, def_date) = match item.date with
     | Some d -> (d, true)
     | None   -> (our_date, false)
     in
-    let (date, repeat) = if yesno "Date" def_date then
+    let (date, repeat, priority) = if yesno "Date" def_date then
         let def_repeatq = match item.repeat with
         | Weekly  -> 'w'
         | Monthly -> 'm'
@@ -116,21 +117,24 @@ let read_item maybe_item =
         let year  = read_int_default "Year"  in_date.year in
         let month = read_int_default "Month" in_date.month in
         let day   = read_int_default "Day"   in_date.day in
+        let priority = read_int_default "Days until urgent" 2 in
         let record_date = Some {year = year; month = month; day = day} in
         match repeatq with
-            |'w' -> (record_date, Weekly)
-            |'m' -> (record_date, Monthly)
-            |'y' -> (record_date, Yearly)
-            |'n' -> (record_date, Never)
+            |'w' -> (record_date, Weekly,  priority)
+            |'m' -> (record_date, Monthly, priority)
+            |'y' -> (record_date, Yearly,  priority)
+            |'n' -> (record_date, Never,   priority)
             |_   -> raise (Failure "should never happen")
     else
-        (None, Never)
+        (None, Never, 0)
     in
     let text = read_string_default "Text" item.text in
+    if text = "" then raise (Failure "blank item") else
     {text     = text;
      complete = false;
      repeat   = repeat;
-     date     = date}
+     date     = date;
+     priority = priority}
 
 (* display the working schedule *)
 let display_schedule () =
@@ -140,7 +144,7 @@ let display_schedule () =
         match incoming_items with [] -> () | item :: items ->
         (* check to see if we need to display the current date *)
         let next_date = match item.date with None -> our_date | Some date -> date in
-        if next_date >= our_date && our_date > old_date then begin
+        if  next_date >= our_date && our_date > old_date then begin
             print_string ((set_style [Reset;Bright] White Black) ^
                           (Printf.sprintf "%04d/%02d/%02d ====== Today's Date\n"
                               our_date.year our_date.month our_date.day) ^
@@ -157,19 +161,35 @@ let display_schedule () =
          * are a bit ugly *)
         let date_offset = relative_offset item.date (Some our_date) in
         print_string (match (date_offset, item.complete) with
-            | (Some n, true) when n <= 7 -> (color_text Blue ^ (string_of_int n))
+            (* if the item is complete... *)
+            | (Some n, true) when n <= 7 ->
+                color_text Blue ^ (string_of_int n)
             | (_, true) -> (color_text Blue ^ "x")
+            (* if the item is incomplete and far off... *)
+            | (Some n, false) when (n > 7) && (n < item.priority*4) ->
+                color_text Green ^ "+"
+            | (Some n, false) when (n > 7) && (n < item.priority*2) ->
+                color_text Yellow ^ "+"
+            | (Some n, false) when (n > 7) && (n < item.priority) ->
+                color_text Red ^ "+"
+            | (Some n, false) when (n >= item.priority*4) ->
+                " " (* TODO: is this what you want? *)
+            (* if the item is incomplete and near... *)
+            | (Some n, false) when (n < item.priority) && (n >= 0) ->
+                (set_style [Reset;Bright] Red Black ^ (string_of_int n))
+            | (Some n, false) when (n < item.priority * 2) && (n >= 0) ->
+                (set_style [Reset;Bright] Yellow Black ^ (string_of_int n))
+            | (Some n, false) when (n < item.priority * 4) && (n >= 0) ->
+                (set_style [Reset;Bright] Green Black ^ (string_of_int n))
+            (* if the item is past due... *)
             | (Some n, false) when n < -7 ->
                 (set_style [Reset;Bright] Magenta Black ^ "+")
             | (Some n, false) when n < 0 && n >= -7 ->
                 (set_style [Reset;Bright] Magenta Black ^ (string_of_int (-n)))
-            | (Some n, false) when n <= 1 ->
-                (set_style [Reset;Bright] Red Black ^ (string_of_int n))
-            | (Some n, false) when n <= 3 ->
-                (set_style [Reset;Bright] Yellow Black ^ (string_of_int n))
-            | (Some n, false) when n <= 7 ->
-                (set_style [Reset;Bright] Green Black ^ (string_of_int n))
-            | (_, false) -> " ");
+            (* if the item is untimed... *)
+            | (None, false) -> " "
+            (* if we fucked up... *)
+            | _ -> "?");
         print_string (color_text White ^ "] ");
         (* dump text and loop *)
         Printf.printf "%02d %s\n" number item.text;

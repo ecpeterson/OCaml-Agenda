@@ -7,7 +7,8 @@ type item = {
     text: string;
     mutable complete: bool;
     repeat: repeatT;
-    date: date option}
+    date: date option;
+    priority: int}
 
 (* this is our working schedule *)
 let schedule_title = ref "Agenda"
