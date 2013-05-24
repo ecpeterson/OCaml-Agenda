@@ -2,7 +2,7 @@ open Date
 
 (* datum for a single entry, note that changing this will alter the file format
  * used to store the schedule via Marshal. *)
-type repeatT = Weekly | Monthly | Yearly | Never
+type repeatT = Weekly | Monthly | Yearly | Count of int | Never
 type item = {
     text: string;
     mutable complete: bool;
@@ -87,6 +87,11 @@ let trim_schedule schedule =
                         |(_, Yearly) ->
                             let new_item = {item with
                                 date     = Some (add_year incoming_date);
+                                complete = false} in
+                            ts_aux (new_item :: prefix) items
+                        |(_, Count n) ->
+                            let new_item = {item with
+                                date     = Some (add_days n incoming_date);
                                 complete = false} in
                             ts_aux (new_item :: prefix) items
                         |(_, Never) -> ts_aux prefix items

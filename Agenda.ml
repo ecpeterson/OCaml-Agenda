@@ -106,14 +106,17 @@ let read_item maybe_item =
     | Some d -> (d, true)
     | None   -> (our_date, false)
     in
-    let (date, repeat, priority) = if yesno "Date" def_date then
+    let (date, repeat, priority) = if yesno "Date" def_date then begin
+        let daycount = ref 7 in
         let def_repeatq = match item.repeat with
         | Weekly  -> 'w'
         | Monthly -> 'm'
         | Yearly  -> 'y'
+        | Count n -> daycount := n; 'c'
         | Never   -> 'n'
         in
-        let repeatq = read_char_default "Repeat? (weekly, monthly, yearly, never)" ['w';'m';'y';'n'] def_repeatq in
+        let repeatq = read_char_default "Repeat? (Week, Month, Year, every C days, Never)" ['w';'m';'y';'c';'n'] def_repeatq in
+        if repeatq = 'c' then daycount := read_int_default "Count" !daycount;
         let year  = read_int_default "Year"  in_date.year in
         let month = read_int_default "Month" in_date.month in
         let day   = read_int_default "Day"   in_date.day in
@@ -123,9 +126,10 @@ let read_item maybe_item =
             |'w' -> (record_date, Weekly,  priority)
             |'m' -> (record_date, Monthly, priority)
             |'y' -> (record_date, Yearly,  priority)
+            |'c' -> (record_date, Count !daycount, priority)
             |'n' -> (record_date, Never,   priority)
             |_   -> raise (Failure "should never happen")
-    else
+    end else
         (None, Never, 0)
     in
     let text = read_string_default "Text" item.text in

@@ -44,12 +44,12 @@ let within_days date num =
         | None -> false
         | Some days -> days <= num
 
-let add_week date =
+let add_days days date =
     let tm : Unix.tm =
         {tm_sec   = 0;
          tm_min   = 0;
          tm_hour  = 12;
-         tm_mday  = date.day + 7;
+         tm_mday  = date.day + days;
          tm_mon   = date.month - 1;
          tm_year  = date.year - 1900;
          tm_wday  = 0;
@@ -57,6 +57,8 @@ let add_week date =
          tm_isdst = false} in
     let (_, tm) = mktime tm in
     date_of_tm tm
+
+let add_week date = add_days 7 date
 
 let add_month date =
     if date.month = 12 then
