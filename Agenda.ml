@@ -170,12 +170,12 @@ let display_schedule () =
                 color_text Blue ^ (string_of_int n)
             | (_, true) -> (color_text Blue ^ "x")
             (* if the item is incomplete and far off... *)
-            | (Some n, false) when (n > 7) && (n < item.priority*4) ->
-                color_text Green ^ "+"
-            | (Some n, false) when (n > 7) && (n < item.priority*2) ->
-                color_text Yellow ^ "+"
             | (Some n, false) when (n > 7) && (n < item.priority) ->
                 color_text Red ^ "+"
+            | (Some n, false) when (n > 7) && (n < item.priority*2) ->
+                color_text Yellow ^ "+"
+            | (Some n, false) when (n > 7) && (n < item.priority*4) ->
+                color_text Green ^ "+"
             | (Some n, false) when (n >= item.priority*4) ->
                 " " (* TODO: is this what you want? *)
             (* if the item is incomplete and near... *)
