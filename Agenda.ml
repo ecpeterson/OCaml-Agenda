@@ -120,7 +120,7 @@ let read_item maybe_item =
         let year  = read_int_default "Year"  in_date.year in
         let month = read_int_default "Month" in_date.month in
         let day   = read_int_default "Day"   in_date.day in
-        let priority = read_int_default "Days until urgent" 2 in
+        let priority = read_int_default "Days until urgent" item.priority in
         let record_date = Some {year = year; month = month; day = day} in
         match repeatq with
             |'w' -> (record_date, Weekly,  priority)
