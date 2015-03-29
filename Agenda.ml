@@ -167,8 +167,8 @@ let display_schedule () =
         print_string (match (date_offset, item.complete) with
             (* if the item is complete... *)
             | (Some n, true) when n <= 7 ->
-                color_text Blue ^ (string_of_int n)
-            | (_, true) -> (color_text Blue ^ "x")
+                set_style [Reset;Bright] Blue Black ^ (string_of_int n)
+            | (_, true) -> (set_style [Reset;Bright] Blue Black ^ "x")
             (* if the item is incomplete and far off... *)
             | (Some n, false) when (n > 7) && (n < item.priority) ->
                 color_text Red ^ "+"
