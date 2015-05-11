@@ -34,7 +34,9 @@ let relative_offset date1 date2 =
                                   tm_mon = date2.month - 1;
                                   tm_year = date2.year - 1900;
                                   tm_wday = 0; tm_yday = 0; tm_isdst = false; } in
-        Some (int_of_float (((date1 -. date2) /. (60. *. 60. *. 24.)) +. 0.5))
+        let offset = (((date1 -. date2) /. (60. *. 60. *. 24.)) +. 0.5) in
+        Some (if (offset >= 0.0) then int_of_float offset
+                                 else (int_of_float offset) - 1)
     | _ -> None
 
 (* check to see if a date record is within num days of the current time *)
