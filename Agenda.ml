@@ -298,6 +298,18 @@ and menu =
          alter_schedule (fun x -> delete_item x idx);
          last_idx := 1;
          loop No_msg);
+     "Forward item", 'f', (fun () ->
+         let idx = read_int_default "Item" !last_idx in
+         let item = lookup_item idx in
+         alter_schedule (fun x ->
+            match new_item_by_forward item with
+            |None ->
+                last_idx := 1;
+                delete_item x idx
+            |Some fresh_item ->
+                last_idx := sorted_index_for_item (delete_item x idx) fresh_item;
+                replace_item x idx fresh_item);
+         loop No_msg);
      "Write schedule", 'w', (fun () ->
          write_schedule ();
          loop (Notice ("Wrote schedule to " ^ Schedule.filename)));

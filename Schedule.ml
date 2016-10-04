@@ -60,6 +60,37 @@ let sorted_index_for_item schedule item =
         | []    -> idx
     in sifi_aux schedule item 1
 
+let new_item_by_forward item =
+    match item.date with
+    |None -> None
+    |Some incoming_date ->
+        match item.repeat with
+        |Never -> None
+        |Weekly ->
+            Some {item with
+                date     = Some (add_week incoming_date);
+                complete = false}
+        |Monthly ->
+            Some {item with
+                date     = Some (add_month incoming_date);
+                complete = false}
+        |Yearly ->
+            Some {item with
+                date     = Some (add_year incoming_date);
+                complete = false}
+        |Count n ->
+            Some {item with
+                date     = Some (add_days n incoming_date);
+                complete = false}
+
+let rec forward_item schedule num =
+    match schedule with [] -> [] | s :: ss ->
+    if num = 1  then
+        begin match new_item_by_forward s with
+        |None -> ss
+        |Some item -> item :: ss
+    end else s :: forward_item ss (num - 1)
+
 (* rip off the head of the schedule until we get to the current date *)
 let trim_schedule schedule =
     let our_date = gen_date () in
@@ -74,27 +105,13 @@ let trim_schedule schedule =
                         match (item.complete, item.repeat) with
                         |(false, _) ->
                             ts_aux (item :: prefix) items
-                        |(_, Weekly) ->
-                            let new_item = {item with
-                                date     = Some (add_week incoming_date);
-                                complete = false} in
-                            ts_aux (new_item :: prefix) items
-                        |(_, Monthly) ->
-                            let new_item = {item with
-                                date     = Some (add_month incoming_date);
-                                complete = false} in
-                            ts_aux (new_item :: prefix) items
-                        |(_, Yearly) ->
-                            let new_item = {item with
-                                date     = Some (add_year incoming_date);
-                                complete = false} in
-                            ts_aux (new_item :: prefix) items
-                        |(_, Count n) ->
-                            let new_item = {item with
-                                date     = Some (add_days n incoming_date);
-                                complete = false} in
-                            ts_aux (new_item :: prefix) items
                         |(_, Never) -> ts_aux prefix items
+                        |(_, _) ->
+                            match new_item_by_forward item with
+                            |None ->
+                                ts_aux (item :: prefix) items
+                            |Some forwarded_item ->
+                                ts_aux (forwarded_item :: prefix) items
                     end else ts_aux (item :: prefix) items in
     List.sort compare_items (List.rev (ts_aux [] schedule))
 
