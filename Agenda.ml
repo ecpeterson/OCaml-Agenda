@@ -27,9 +27,9 @@ let read_char_default tag allowed default =
         Buffer.contents (
             List.fold_left (fun a b ->
                 let c = (if b == default then
-                    Char.uppercase b
+                    Char.uppercase_ascii b
                 else
-                    Char.lowercase b)
+                    Char.lowercase_ascii b)
                 in
                 Buffer.add_char a c;
                 a) (Buffer.create 4) allowed

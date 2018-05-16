@@ -41,10 +41,10 @@ let cooked fh echo =
     tcsetattr fd TCSANOW termios
 
 let readchar_raw fd =
-    let buf = String.create 1 in
+    let buf = Bytes.create 1 in
     flush_all ();
     let _ = read fd buf 0 1 in
-    buf.[0]
+    Bytes.get buf 0
 
 let readchar fh timeout =
     let fd = descr_of_in_channel fh in
