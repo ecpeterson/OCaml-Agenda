@@ -2,7 +2,8 @@ open Date
 
 (* datum for a single entry, note that changing this will alter the file format
  * used to store the schedule via Marshal. *)
-type repeatT = Weekly | Monthly | Yearly | Count of int | Never
+type repeatT = Weekly | Monthly | Yearly | Count of int | (* <-- deprecated *)
+    Never | Days of int | Weeks of int | Months of int | Years of int
 type item = {
     text: string;
     mutable complete: bool;
@@ -66,22 +67,23 @@ let new_item_by_forward item =
     |Some incoming_date ->
         match item.repeat with
         |Never -> None
-        |Weekly ->
-            Some {item with
-                date     = Some (add_week incoming_date);
-                complete = false}
-        |Monthly ->
-            Some {item with
-                date     = Some (add_month incoming_date);
-                complete = false}
-        |Yearly ->
-            Some {item with
-                date     = Some (add_year incoming_date);
-                complete = false}
-        |Count n ->
+        |Days n ->
             Some {item with
                 date     = Some (add_days n incoming_date);
                 complete = false}
+        |Weeks n ->
+            Some {item with
+                date = Some (add_weeks n incoming_date);
+                complete = false}
+        |Months n ->
+            Some {item with
+                date = Some (add_months n incoming_date);
+                complete = false}
+        |Years n ->
+            Some {item with
+                date = Some (add_years n incoming_date);
+                complete = false}
+        |_ -> raise (Failure "Should never happen")
 
 let rec forward_item schedule num =
     match schedule with [] -> [] | s :: ss ->
@@ -115,11 +117,24 @@ let trim_schedule schedule =
                     end else ts_aux (item :: prefix) items in
     List.sort compare_items (List.rev (ts_aux [] schedule))
 
+(* bring forward old schedule dumps to the modern format *)
+let update_schedule () =
+    let update_subschedule _ subschedule =
+        let us_aux item = match item.repeat with
+            |Weekly  -> {item with repeat = Weeks  1}
+            |Monthly -> {item with repeat = Months 1}
+            |Yearly  -> {item with repeat = Years  1}
+            |Count n -> {item with repeat = Days   n}
+            |_ -> item in
+        Some (List.map us_aux subschedule) in
+    Hashtbl.filter_map_inplace update_subschedule !schedule
+
 (* file io routines *)
 let read_schedule () =
     try
         let fh = open_in_bin filename in
         schedule := Marshal.from_channel fh;
+        update_schedule ();
         close_in fh
     with _ -> print_endline "Couldn't open preexisting schedule."
 

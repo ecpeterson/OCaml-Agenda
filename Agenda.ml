@@ -107,27 +107,26 @@ let read_item maybe_item =
     | None   -> (our_date, false)
     in
     let (date, repeat, priority) = if yesno "Date" def_date then begin
-        let daycount = ref 7 in
-        let def_repeatq = match item.repeat with
-        | Weekly  -> 'w'
-        | Monthly -> 'm'
-        | Yearly  -> 'y'
-        | Count n -> daycount := n; 'c'
-        | Never   -> 'n'
-        in
-        let repeatq = read_char_default "Repeat? (Week, Month, Year, every C days, Never)" ['w';'m';'y';'c';'n'] def_repeatq in
-        if repeatq = 'c' then daycount := read_int_default "Count" !daycount;
+        let def_repeatq, count = match item.repeat with
+            | Weeks  n -> 'w', n
+            | Months n -> 'm', n
+            | Years  n -> 'y', n
+            | Days   n -> 'd', n
+            | Never    -> 'n', 0
+            | _ -> raise (Failure "Should never happen") in
+        let repeatq = read_char_default "Repeat? (Week, Month, Year, Day, Never)" ['w';'m';'y';'d';'n'] def_repeatq in
+        let count = if repeatq != 'n' then read_int_default "Count" count else 0 in
         let year  = read_int_default "Year"  in_date.year in
         let month = read_int_default "Month" in_date.month in
         let day   = read_int_default "Day"   in_date.day in
         let priority = read_int_default "Days until urgent" item.priority in
         let record_date = Some {year = year; month = month; day = day} in
         match repeatq with
-            |'w' -> (record_date, Weekly,  priority)
-            |'m' -> (record_date, Monthly, priority)
-            |'y' -> (record_date, Yearly,  priority)
-            |'c' -> (record_date, Count !daycount, priority)
-            |'n' -> (record_date, Never,   priority)
+            |'w' -> (record_date, Weeks  count, priority)
+            |'m' -> (record_date, Months count, priority)
+            |'y' -> (record_date, Years  count, priority)
+            |'d' -> (record_date, Days   count, priority)
+            |'n' -> (record_date, Never,        priority)
             |_   -> raise (Failure "should never happen")
     end else
         (None, Never, 0)
