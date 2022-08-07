@@ -50,7 +50,7 @@ let readchar fh timeout =
     let fd = descr_of_in_channel fh in
     match timeout with
     | Some t -> (
-        flush Pervasives.stdout;
+        flush Stdlib.stdout;
         let (rout, _, _) = select [fd] [] [] t in
         match rout with
         | [fd] -> readchar_raw fd
