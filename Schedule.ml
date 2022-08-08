@@ -9,14 +9,11 @@ type item = {
     mutable complete: bool;
     repeat: repeatT;
     date: date option;
-    priority: int}
+    priority: int
+}
 
 (* this is our working schedule *)
-let schedule_title = ref "Agenda"
-let schedule = ref (let h = Hashtbl.create 1 in
-                    Hashtbl.add h !schedule_title ([]: item list); h)
-let current_schedule () =
-    Hashtbl.find !schedule !schedule_title
+let schedule = ref ([]: item list)
 let filename = (Sys.getenv "HOME") ^ "/.schedule.sch"
 
 (* lexicographic compare on items isn't quite satisfying *)
@@ -28,15 +25,10 @@ let compare_items a b =
         |Some x, Some y -> compare x y
 
 let lookup_item idx =
-    let schedule = current_schedule () in
-    let rec li_aux idx sched =
-        match sched with
-        | x::xs -> if idx == 1 then x else li_aux (idx - 1) xs
-        | []    -> raise (Failure "lookup_item: out of bounds")
-    in li_aux idx schedule
+    List.nth !schedule (idx - 1)
 
 let alter_schedule f =
-    Hashtbl.replace !schedule !schedule_title (f (current_schedule ()))
+    schedule := f !schedule
 
 (* delete the num'th item of schedule *)
 let rec delete_item schedule num =
@@ -103,11 +95,13 @@ let trim_schedule schedule =
                     ts_aux (item :: prefix) items
                 |Some incoming_date ->
                     if (incoming_date < our_date) then begin
-                        (* if it's a repeating item, spawn a new one *)
                         match (item.complete, item.repeat) with
+                        (* if it's not done, keep it *)
                         |(false, _) ->
                             ts_aux (item :: prefix) items
+                        (* if it isn't repeating, discard it *)
                         |(_, Never) -> ts_aux prefix items
+                        (* if it's a repeating item, spawn a new one *)
                         |(_, _) ->
                             match new_item_by_forward item with
                             |None ->
@@ -117,24 +111,11 @@ let trim_schedule schedule =
                     end else ts_aux (item :: prefix) items in
     List.sort compare_items (List.rev (ts_aux [] schedule))
 
-(* bring forward old schedule dumps to the modern format *)
-let update_schedule () =
-    let update_subschedule _ subschedule =
-        let us_aux item = match item.repeat with
-            |Weekly  -> {item with repeat = Weeks  1}
-            |Monthly -> {item with repeat = Months 1}
-            |Yearly  -> {item with repeat = Years  1}
-            |Count n -> {item with repeat = Days   n}
-            |_ -> item in
-        Some (List.map us_aux subschedule) in
-    Hashtbl.filter_map_inplace update_subschedule !schedule
-
 (* file io routines *)
 let read_schedule () =
     try
         let fh = open_in_bin filename in
         schedule := Marshal.from_channel fh;
-        update_schedule ();
         close_in fh
     with _ -> print_endline "Couldn't open preexisting schedule."
 

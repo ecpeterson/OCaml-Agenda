@@ -203,10 +203,11 @@ let display_schedule () =
     (* print the header *)
     print_string AnsiLib.reset_cursor;
     let header = (set_style [Reset;Bright] White Black) ^
-        (Printf.sprintf "================= List: %s\n" !schedule_title) ^
+        (* TODO: print group info here *)
+        (Printf.sprintf "================= Agenda\n") ^
         (set_style [Reset] White Black) in
     print_string header;
-    ds_aux (Hashtbl.find !schedule !schedule_title) old_date 1
+    ds_aux !schedule old_date 1
 
 (* the main loop for the program *)
 let rec loop msg =
@@ -312,20 +313,6 @@ and menu =
      "Write schedule", 'w', (fun () ->
          write_schedule ();
          loop (Notice ("Wrote schedule to " ^ Schedule.filename)));
-     "Change schedule", 's', (fun () ->
-        print_endline "Available lists are:";
-        Hashtbl.iter (fun a b -> print_endline ("    " ^ a)) !schedule;
-        let response = read_string_default "Change list to" "Agenda" in
-        begin try let _ = Hashtbl.find !schedule response in
-            schedule_title := response;
-            last_idx := 1
-        with Not_found ->
-            if yesno "Schedule does not exist!  Do you want to create it?" false then
-                schedule_title := response;
-                Hashtbl.add !schedule response [];
-                last_idx := 1
-        end;
-        loop No_msg);
      "Quit", 'q', (fun () -> ())]
 
 (* entry point for the program *)
