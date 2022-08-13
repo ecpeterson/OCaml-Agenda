@@ -9,7 +9,8 @@ type item = {
     mutable complete: bool;
     repeat: repeatT;
     date: date option;
-    priority: int
+    priority: int;
+    mutable group: int option
 }
 
 (* this is our working schedule *)

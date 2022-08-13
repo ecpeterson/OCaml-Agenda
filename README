@@ -2,4 +2,4 @@ Simple console-based calendar / agenda / scheduling program written in OCaml.
 
 Uses gmake to compile, generates a bytecode executable 'agenda'.
 
-Stores local data in ${HOME}/.schedule.sch using the OCaml marshalling library, which can become damaged after OCaml version upgrades (though in the past 3+ years this hasn't happened).
+Stores local data in ${HOME}/.schedule.sch using the OCaml marshalling library, which can become damaged after OCaml version upgrades (though in the past 15+ years this hasn't happened).

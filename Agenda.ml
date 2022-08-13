@@ -9,6 +9,10 @@ exception Refresh
 (* default item choice *)
 let last_idx = ref 1
 
+(* active group filter *)
+let group = ref (None: int option)
+let max_group = 10000
+
 (* generic error string *)
 let invalid_string = "Invalid choice."
 
@@ -100,7 +104,8 @@ let read_item maybe_item =
                  complete = false;
                  repeat   = Never;
                  date     = Some our_date;
-                 priority = 2}
+                 priority = 2;
+                 group    = None}
     in
     let (in_date, def_date) = match item.date with
     | Some d -> (d, true)
@@ -112,7 +117,7 @@ let read_item maybe_item =
             | Months n -> 'm', n
             | Years  n -> 'y', n
             | Days   n -> 'd', n
-            | Never    -> 'n', 0
+            | Never    -> 'n', 1
             | _ -> raise (Failure "Should never happen") in
         let repeatq = read_char_default "Repeat? (Week, Month, Year, Day, Never)" ['w';'m';'y';'d';'n'] def_repeatq in
         let count = if repeatq != 'n' then read_int_default "Count" count else 0 in
@@ -133,11 +138,13 @@ let read_item maybe_item =
     in
     let text = read_string_default "Text" item.text in
     if text = "" then raise (Failure "blank item") else
+    let group = item.group in
     {text     = text;
      complete = false;
      repeat   = repeat;
      date     = date;
-     priority = priority}
+     priority = priority;
+     group    = group}
 
 (* display the working schedule *)
 let display_schedule () =
@@ -165,8 +172,8 @@ let display_schedule () =
         let date_offset = relative_offset item.date (Some our_date) in
         print_string (match (date_offset, item.complete) with
             (* if the item is complete... *)
-            | (Some n, true) when n <= 7 ->
-                set_style [Reset;Bright] Blue Black ^ (string_of_int n)
+            (* | (Some n, true) when n <= 7 -> *)
+            (*     set_style [Reset;Bright] Blue Black ^ (string_of_int n) *)
             | (_, true) -> (set_style [Reset;Bright] Blue Black ^ "x")
             (* if the item is incomplete and far off... *)
             | (Some n, false) when (n > 7) && (n < item.priority) ->
@@ -195,18 +202,20 @@ let display_schedule () =
             | _ -> "?");
         print_string (color_text White ^ "] ");
         (* dump text and loop *)
-        Printf.printf "%02d %s\n" number item.text;
+        let highlight_color = match item.group, !group with
+            |Some n, Some m when n = m -> set_style [Reset;Bright] Cyan Black
+            |_ -> color_text White in
+        let reset_color = color_text White in
+        Printf.printf "%02d %s%s%s\n" number highlight_color item.text reset_color;
         match item.date with
             |None -> ds_aux items our_date (number + 1)
             |Some date -> ds_aux items date (number + 1)
         end in
     (* print the header *)
-    print_string AnsiLib.reset_cursor;
-    let header = (set_style [Reset;Bright] White Black) ^
-        (* TODO: print group info here *)
-        (Printf.sprintf "================= Agenda\n") ^
-        (set_style [Reset] White Black) in
-    print_string header;
+    Printf.printf "%s%s================= Agenda\n%s"
+        AnsiLib.reset_cursor
+        (set_style [Reset;Bright] White Black)
+        (set_style [Reset] White Black);
     ds_aux !schedule old_date 1
 
 (* the main loop for the program *)
@@ -275,33 +284,33 @@ and menu =
             last_idx := sorted_index_for_item x item;
             item :: x);
         loop No_msg);
-     "Edit item", 'e', (fun () ->
-         let idx = read_int_default "Item" !last_idx in
-         let item = read_item (Some (lookup_item idx)) in
-         alter_schedule (fun x ->
-             last_idx := sorted_index_for_item (delete_item x idx) item;
-             replace_item x idx item);
-         loop No_msg);
-     "Toggle completion", 't', (fun () ->
-         let idx = read_int_default "Item" !last_idx in
-         let item = lookup_item idx in
-         item.complete <- not item.complete;
-         begin match item.date with
-         (* it'll get cleaned *)
-         | Some date when item.complete && date < gen_date ()
-             -> last_idx := 1
-         | _ -> last_idx := idx
-         end;
-         loop No_msg);
-     "Delete item", 'd', (fun () ->
-         let idx = read_int_default "Item" !last_idx in
-         alter_schedule (fun x -> delete_item x idx);
-         last_idx := 1;
-         loop No_msg);
-     "Forward item", 'f', (fun () ->
-         let idx = read_int_default "Item" !last_idx in
-         let item = lookup_item idx in
-         alter_schedule (fun x ->
+    "Edit item", 'e', (fun () ->
+        let idx = read_int_default "Item" !last_idx in
+        let item = read_item (Some (lookup_item idx)) in
+        alter_schedule (fun x ->
+            last_idx := sorted_index_for_item (delete_item x idx) item;
+            replace_item x idx item);
+        loop No_msg);
+    "Toggle completion", 't', (fun () ->
+        let idx = read_int_default "Item" !last_idx in
+        let item = lookup_item idx in
+        item.complete <- not item.complete;
+        begin match item.date with
+            (* it'll get cleaned *)
+            | Some date when item.complete && date < gen_date ()
+                -> last_idx := 1
+            | _ -> last_idx := idx
+        end;
+        loop No_msg);
+    "Delete item", 'd', (fun () ->
+        let idx = read_int_default "Item" !last_idx in
+        alter_schedule (fun x -> delete_item x idx);
+        last_idx := 1;
+        loop No_msg);
+    "Forward item", 'f', (fun () ->
+        let idx = read_int_default "Item" !last_idx in
+        let item = lookup_item idx in
+        alter_schedule (fun x ->
             match new_item_by_forward item with
             |None ->
                 last_idx := 1;
@@ -309,11 +318,39 @@ and menu =
             |Some fresh_item ->
                 last_idx := sorted_index_for_item (delete_item x idx) fresh_item;
                 replace_item x idx fresh_item);
-         loop No_msg);
-     "Write schedule", 'w', (fun () ->
-         write_schedule ();
-         loop (Notice ("Wrote schedule to " ^ Schedule.filename)));
-     "Quit", 'q', (fun () -> ())]
+        loop No_msg);
+    "Inherit group", 'g', (fun () ->
+        last_idx := read_int_default "Item" !last_idx;
+        let read_idx = read_int_default "Parent" !last_idx in
+        let parent_group = (lookup_item read_idx).group in
+        begin match parent_group with
+        |None -> 
+            let new_group = 1 + (List.fold_left
+                (fun a b -> match b.group with None -> a | Some bb -> max a bb)
+                0 !schedule) in
+            (lookup_item read_idx).group <- Some new_group;
+            (lookup_item !last_idx).group <- Some new_group
+        |Some _ ->
+            (lookup_item !last_idx).group <- parent_group
+        end;
+        loop (Notice "Joined group."));
+    "Unset group", 'u', (fun () ->
+         last_idx := read_int_default "Item" !last_idx;
+         (lookup_item !last_idx).group <- None;
+         loop (Notice "Group unset."));
+    "Highlight group", 'h', (fun () ->
+        match !group with
+            |None ->
+                last_idx := read_int_default "Filter" !last_idx;
+                group := (lookup_item !last_idx).group;
+                loop (Notice "Set highlight")
+            |Some n ->
+                group := None;
+                loop (Notice "Unset highlight"));
+    "Write schedule", 'w', (fun () ->
+        write_schedule ();
+        loop (Notice ("Wrote schedule to " ^ Schedule.filename)));
+    "Quit", 'q', (fun () -> ())]
 
 (* entry point for the program *)
 let _ =
