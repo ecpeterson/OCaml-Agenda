@@ -104,3 +104,81 @@ let readkey fh =
         | e              -> raise e
     else
         k
+
+(*
+ * Some useful wrapper functions around readkey.
+ *)
+
+let read_int_default tag default =
+    Printf.printf "%s [%d]: " tag default;
+    let response = read_line () in
+    if response = "" then default else int_of_string response
+
+let read_char_default tag allowed default =
+    let choices =
+        Buffer.contents (
+            List.fold_left (fun a b ->
+                let c = (if b == default then
+                    Char.uppercase_ascii b
+                else
+                    Char.lowercase_ascii b)
+                in
+                Buffer.add_char a c;
+                a) (Buffer.create 4) allowed
+        )
+    in
+    Printf.printf "%s [%s]: " tag choices;
+    cbreak Stdlib.stdin false;
+    let ret =
+        try
+            let rec rcd_aux () =
+                try
+                    let key = readkey Stdlib.stdin in
+                    (match key with
+                    | Char c -> (if List.exists (fun cc -> c == cc) allowed then
+                                    c
+                                else
+                                    rcd_aux())
+                    | ENTER  -> default
+                    | _      -> rcd_aux ())
+                with Timed_out -> rcd_aux () | e -> raise e
+            in rcd_aux ()
+        with e ->
+            (cooked Stdlib.stdin true; raise e)
+    in
+    cooked Stdlib.stdin true;
+    Printf.printf "%c\n" ret;
+    ret
+
+let read_string_default tag default =
+    if String.length default == 0 then
+        Printf.printf "%s: " tag
+    else
+        Printf.printf "%s [\"%s\"]: " tag default;
+    match read_line () with
+    | "" -> default
+    | s  -> s
+
+let yesno tag default =
+    Printf.printf "%s [%s]: " tag (if default then "Yn" else "yN");
+    cbreak Stdlib.stdin false;
+    let ret =
+        try
+            let rec yesno_aux () =
+                try
+                    let key = readkey Stdlib.stdin in
+                    (match key with
+                     | Char c -> (match c with
+                                  | 'Y' | 'y' -> true
+                                  | 'N' | 'n' -> false
+                                  | _         -> yesno_aux ())
+                     | ENTER  -> default
+                     | _      -> yesno_aux ())
+                with Timed_out -> yesno_aux () | e -> raise e
+            in yesno_aux ()
+        with e ->
+            (cooked Stdlib.stdin true; raise e)
+    in
+    cooked Stdlib.stdin true;
+    Printf.printf "%c\n" (if ret then 'y' else 'n');
+    ret

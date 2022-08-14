@@ -13,6 +13,57 @@ type item = {
     mutable group: int option
 }
 
+(* read in a whole item and return it *)
+let read_item maybe_item =
+    let our_date = gen_date () in
+    let item = match maybe_item with
+    | Some i -> i
+    | None   -> {text     = "";
+                 complete = false;
+                 repeat   = Never;
+                 date     = Some our_date;
+                 priority = 2;
+                 group    = None}
+    in
+    let (in_date, def_date) = match item.date with
+    | Some d -> (d, true)
+    | None   -> (our_date, false)
+    in
+    let (date, repeat, priority) = if ReadKey.yesno "Date" def_date then begin
+        let def_repeatq, count = match item.repeat with
+            | Weeks  n -> 'w', n
+            | Months n -> 'm', n
+            | Years  n -> 'y', n
+            | Days   n -> 'd', n
+            | Never    -> 'n', 1
+            | _ -> raise (Failure "Should never happen") in
+        let repeatq = ReadKey.read_char_default "Repeat? (Week, Month, Year, Day, Never)" ['w';'m';'y';'d';'n'] def_repeatq in
+        let count = if repeatq != 'n' then ReadKey.read_int_default "Count" count else 0 in
+        let year  = ReadKey.read_int_default "Year"  in_date.year in
+        let month = ReadKey.read_int_default "Month" in_date.month in
+        let day   = ReadKey.read_int_default "Day"   in_date.day in
+        let priority = ReadKey.read_int_default "Days until urgent" item.priority in
+        let record_date = Some {year = year; month = month; day = day} in
+        match repeatq with
+            |'w' -> (record_date, Weeks  count, priority)
+            |'m' -> (record_date, Months count, priority)
+            |'y' -> (record_date, Years  count, priority)
+            |'d' -> (record_date, Days   count, priority)
+            |'n' -> (record_date, Never,        priority)
+            |_   -> raise (Failure "should never happen")
+    end else
+        (None, Never, 0)
+    in
+    let text = ReadKey.read_string_default "Text" item.text in
+    if text = "" then raise (Failure "blank item") else
+    let group = item.group in
+    {text     = text;
+     complete = false;
+     repeat   = repeat;
+     date     = date;
+     priority = priority;
+     group    = group}
+
 (* this is our working schedule *)
 let schedule = ref ([]: item list)
 let filename = (Sys.getenv "HOME") ^ "/.schedule.sch"
