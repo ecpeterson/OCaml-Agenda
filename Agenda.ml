@@ -11,7 +11,6 @@ let last_idx = ref 1
 
 (* active group filter *)
 let group = ref (None: int option)
-let max_group = 10000
 
 (* generic error string *)
 let invalid_string = "Invalid choice."
@@ -92,6 +91,92 @@ let display_schedule () =
         (set_style [Reset] White Black);
     ds_aux !schedule old_date 1
 
+(*
+ * menu items
+ *)
+
+let menu_add_item () =
+    let item = read_item None in
+    alter_schedule (fun x ->
+        last_idx := sorted_index_for_item x item;
+        item :: x)
+
+let menu_edit_item () =
+    let idx = read_int_default "Item" !last_idx in
+    let item = read_item (Some (lookup_item idx)) in
+    alter_schedule (fun x ->
+        last_idx := sorted_index_for_item (delete_item x idx) item;
+        replace_item x idx item)
+
+let menu_toggle_completion () =
+    let idx = read_int_default "Item" !last_idx in
+    let item = lookup_item idx in
+    item.complete <- not item.complete;
+    begin match item.date with
+        (* it'll get cleaned *)
+        | Some date when item.complete && date < gen_date ()
+            -> last_idx := 1
+        | _ -> last_idx := idx
+    end
+
+let menu_delete_item () =
+    let idx = read_int_default "Item" !last_idx in
+    alter_schedule (fun x -> delete_item x idx);
+    last_idx := 1
+
+let menu_forward_item () =
+    let idx = read_int_default "Item" !last_idx in
+    let item = lookup_item idx in
+    alter_schedule (fun x ->
+        match new_item_by_forward item with
+        |None ->
+            last_idx := 1;
+            delete_item x idx
+        |Some fresh_item ->
+            last_idx := sorted_index_for_item (delete_item x idx) fresh_item;
+            replace_item x idx fresh_item)
+
+let menu_inherit_group () =
+    let write_idx = read_int_default "Item" !last_idx in
+    let read_idx = read_int_default "Parent" !last_idx in
+    let parent_group = (lookup_item read_idx).group in
+    begin match parent_group with
+    |None -> 
+        let new_group = 1 + (List.fold_left
+            (fun a b -> match b.group with None -> a | Some bb -> max a bb)
+            0 !schedule) in
+        (lookup_item read_idx).group <- Some new_group;
+        (lookup_item write_idx).group <- Some new_group
+    |Some _ ->
+        (lookup_item write_idx).group <- parent_group
+    end;
+    last_idx := write_idx
+
+let menu_unset_group () =
+    last_idx := read_int_default "Item" !last_idx;
+    (lookup_item !last_idx).group <- None
+
+let menu_highlight_group () =
+    last_idx := read_int_default "Filter" !last_idx;
+    group := (lookup_item !last_idx).group
+
+let menu_unhighlight_group () =
+    group := None
+
+let build_menu () = [
+    "Add item",          'a', menu_add_item,          No_msg;
+    "Edit item",         'e', menu_edit_item,         No_msg;
+    "Toggle completion", 't', menu_toggle_completion, No_msg;
+    "Delete item",       'd', menu_delete_item,       No_msg;
+    "Forward item",      'f', menu_forward_item,      No_msg;
+    "Inherit group",     'g', menu_inherit_group,     No_msg;
+    "Unset group",       'u', menu_unset_group,       No_msg;
+    (match !group with
+    |None -> "Highlight group", 'h', menu_highlight_group,   No_msg
+    |_    -> "Unset highlight", 'h', menu_unhighlight_group, No_msg);
+    "Write schedule",    'w', write_schedule,         Notice ("Wrote schedule to " ^ Schedule.filename)
+]
+
 (* the main loop for the program *)
 let rec loop msg =
     alter_schedule trim_schedule;
@@ -109,7 +194,9 @@ let rec loop msg =
       ^ (set_style [Reset] White Black)
       )
     | No_msg -> ());
-    do_menu menu
+    let menu = (List.map (fun (a, b, c, d) -> (a, b, fun () -> c (); loop d))
+                         (build_menu ())) in
+    do_menu (menu @ ["Quit", 'q', (fun () -> ())])
 (* parses the 'menu' list given below, handles an abstract UI *)
 and do_menu menu =
     let opt_count = ref 0 in
@@ -150,81 +237,6 @@ and do_menu menu =
         (* if the user fucked up, do it again *)
         | Failure s -> loop (ErrMsg s)
         | _         -> loop (ErrMsg "Unknown error")
-(* and the meaty part of the menu, parsed by do_menu *)
-and menu =
-    ["Add item", 'a', (fun () ->
-        let item = read_item None in
-        alter_schedule (fun x ->
-            last_idx := sorted_index_for_item x item;
-            item :: x);
-        loop No_msg);
-    "Edit item", 'e', (fun () ->
-        let idx = read_int_default "Item" !last_idx in
-        let item = read_item (Some (lookup_item idx)) in
-        alter_schedule (fun x ->
-            last_idx := sorted_index_for_item (delete_item x idx) item;
-            replace_item x idx item);
-        loop No_msg);
-    "Toggle completion", 't', (fun () ->
-        let idx = read_int_default "Item" !last_idx in
-        let item = lookup_item idx in
-        item.complete <- not item.complete;
-        begin match item.date with
-            (* it'll get cleaned *)
-            | Some date when item.complete && date < gen_date ()
-                -> last_idx := 1
-            | _ -> last_idx := idx
-        end;
-        loop No_msg);
-    "Delete item", 'd', (fun () ->
-        let idx = read_int_default "Item" !last_idx in
-        alter_schedule (fun x -> delete_item x idx);
-        last_idx := 1;
-        loop No_msg);
-    "Forward item", 'f', (fun () ->
-        let idx = read_int_default "Item" !last_idx in
-        let item = lookup_item idx in
-        alter_schedule (fun x ->
-            match new_item_by_forward item with
-            |None ->
-                last_idx := 1;
-                delete_item x idx
-            |Some fresh_item ->
-                last_idx := sorted_index_for_item (delete_item x idx) fresh_item;
-                replace_item x idx fresh_item);
-        loop No_msg);
-    "Inherit group", 'g', (fun () ->
-        last_idx := read_int_default "Item" !last_idx;
-        let read_idx = read_int_default "Parent" !last_idx in
-        let parent_group = (lookup_item read_idx).group in
-        begin match parent_group with
-        |None -> 
-            let new_group = 1 + (List.fold_left
-                (fun a b -> match b.group with None -> a | Some bb -> max a bb)
-                0 !schedule) in
-            (lookup_item read_idx).group <- Some new_group;
-            (lookup_item !last_idx).group <- Some new_group
-        |Some _ ->
-            (lookup_item !last_idx).group <- parent_group
-        end;
-        loop (Notice "Joined group."));
-    "Unset group", 'u', (fun () ->
-         last_idx := read_int_default "Item" !last_idx;
-         (lookup_item !last_idx).group <- None;
-         loop (Notice "Group unset."));
-    "Highlight group", 'h', (fun () ->
-        match !group with
-            |None ->
-                last_idx := read_int_default "Filter" !last_idx;
-                group := (lookup_item !last_idx).group;
-                loop (Notice "Set highlight")
-            |Some n ->
-                group := None;
-                loop (Notice "Unset highlight"));
-    "Write schedule", 'w', (fun () ->
-        write_schedule ();
-        loop (Notice ("Wrote schedule to " ^ Schedule.filename)));
-    "Quit", 'q', (fun () -> ())]
 
 (* entry point for the program *)
 let _ =
