@@ -4,7 +4,7 @@
  * themselves are pretty opaque, and giving the routines names makes code
  * considerably more readable. *)
 
-let clear_screen () = "\027c"
+let clear_screen () = "\027[H\027[J"
 
 type attribute = Reset | Bright | Dim | Underscore | Blink | Reverse | Hidden
 type color = Black | Red | Green | Yellow | Blue | Magenta | Cyan | White
