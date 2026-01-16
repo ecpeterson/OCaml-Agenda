@@ -16,8 +16,11 @@ let group = ref (None: int option)
 let invalid_string = "Invalid choice."
 
 (* routines to print out the left-most column of the schedule display *)
-let print_spacer () =
-    print_string "        |-"
+let print_spacer date next_date =
+    if Some date = next_date then
+        print_string "        ├─"
+    else
+        print_string "        └─"
 
 (* display the working schedule *)
 let display_schedule () =
@@ -34,11 +37,12 @@ let display_schedule () =
                           (set_style [Reset] White Black)) ;
             ds_aux incoming_items our_date number
         end else begin
+        let next_date = match items with [] -> None | next_item :: _more_items -> next_item.date in
         (* print either the date, a dateless line, or a continuation thing *)
         (match item.date with
             |None -> print_string "----------"
             |Some date ->
-                if date <> old_date then print_date date else print_spacer () );
+                if date <> old_date then print_date date else print_spacer date next_date );
         print_string " [";
         (* this is the part that deals with the checkboxes, ANSI color codes
          * are a bit ugly *)
