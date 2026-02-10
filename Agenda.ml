@@ -32,7 +32,7 @@ let display_schedule () =
         let next_date = match item.date with None -> our_date | Some date -> date in
         if  next_date >= our_date && our_date > old_date then begin
             print_string ((set_style [Reset;Bright] White Black) ^
-                          (Printf.sprintf "%04d/%02d/%02d ====== Today's Date\n"
+                          (Printf.sprintf "%04d/%02d/%02d ══════ Today's Date\n"
                               our_date.year our_date.month our_date.day) ^
                           (set_style [Reset] White Black)) ;
             ds_aux incoming_items our_date number
@@ -40,7 +40,7 @@ let display_schedule () =
         let next_date = match items with [] -> None | next_item :: _more_items -> next_item.date in
         (* print either the date, a dateless line, or a continuation thing *)
         (match item.date with
-            |None -> print_string "----------"
+            |None -> print_string "──────────"
             |Some date ->
                 if date <> old_date then print_date date else print_spacer date next_date );
         print_string " [";
@@ -89,7 +89,7 @@ let display_schedule () =
             |Some date -> ds_aux items date (number + 1)
         end in
     (* print the header *)
-    Printf.printf "%s%s================= Agenda\n%s"
+    Printf.printf "%s%s═════════════════ Agenda\n%s"
         AnsiLib.reset_cursor
         (set_style [Reset;Bright] White Black)
         (set_style [Reset] White Black);
